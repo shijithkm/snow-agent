@@ -43,9 +43,13 @@ def process_ticket(req: TicketRequest):
     if isinstance(result, dict):
         assigned = result.get("assigned_to")
         closed = result.get("closed")
+        work_comments = result.get("work_comments")
         if assigned:
             tickets[ticket_id]["assigned_to"] = assigned
             logger.info("Ticket %s assigned_to=%s", ticket_id, assigned)
+        if work_comments:
+            tickets[ticket_id]["work_comments"] = work_comments
+            logger.info("Ticket %s work_comments added", ticket_id)
 
         # If graph flagged closed True, treat it as immediate closure (rare).
         if closed:
@@ -72,5 +76,10 @@ def process_ticket(req: TicketRequest):
 
             # schedule closure after 60 seconds
             close_later(ticket_id, 60)
+        
+        # If assigned to RFI Agent, mark as closed since research is complete
+        elif assigned == "RFI Agent":
+            tickets[ticket_id]["status"] = "closed"
+            logger.info("Ticket %s marked closed (RFI complete)", ticket_id)
 
     return result

@@ -13,3 +13,4 @@ class SNOWState(BaseModel):
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     result: Optional[str] = None
+    work_comments: Optional[str] = None

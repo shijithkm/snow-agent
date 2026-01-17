@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END
 from .state import SNOWState
-from .nodes import classify_intent, handle_grafana, assign_l1
+from .nodes import classify_intent, handle_grafana, assign_l1, rfi_agent
 
 def build_graph():
     graph = StateGraph(SNOWState)
@@ -8,6 +8,7 @@ def build_graph():
     graph.add_node("classify", classify_intent)
     graph.add_node("grafana", handle_grafana)
     graph.add_node("assign_l1", assign_l1)
+    graph.add_node("rfi", rfi_agent)
 
     graph.set_entry_point("classify")
 
@@ -16,11 +17,13 @@ def build_graph():
         lambda s: s.intent,
         {
             "silence_alert": "grafana",
-            "assign_l1": "assign_l1"
+            "assign_l1": "assign_l1",
+            "rfi": "rfi"
         }
     )
 
     graph.add_edge("grafana", END)
     graph.add_edge("assign_l1", END)
+    graph.add_edge("rfi", END)
 
     return graph.compile()

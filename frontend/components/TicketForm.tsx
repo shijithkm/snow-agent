@@ -25,6 +25,11 @@ export function TicketForm({ onSubmit }: { onSubmit: (d: string, a?: string, t?:
         load();
         return () => { mounted = false };
     }, [API_BASE]);
+    const ticketTypes = [
+        { label: "General", value: "General" },
+        { label: "Request For Information", value: "RFI" },
+        { label: "Silence Alerts", value: "silence_alert" }
+    ];
     const [ticketType, setTicketType] = useState("General");
 
     // Prefill start/end with tomorrow's local datetime (end = +1 hour)
@@ -73,34 +78,39 @@ export function TicketForm({ onSubmit }: { onSubmit: (d: string, a?: string, t?:
                     value={ticketType}
                     onChange={(e) => setTicketType(e.target.value)}
                 >
-                    <option>Supress Alerts</option>
-                    <option>General</option>
+                    {ticketTypes.map((type) => (
+                        <option key={type.value} value={type.value}>
+                            {type.label}
+                        </option>
+                    ))}
                 </select>
             </div>
 
-            <div className="space-y-1">
-                <label className="text-sm text-slate-300">Alert (optional)</label>
-                {alertsError ? (
-                    <div className="text-xs text-rose-400">Failed to load alerts</div>
-                ) : alerts === null ? (
-                    <div className="text-xs text-slate-400">Loading alerts…</div>
-                ) : (
-                    <select
-                        className="w-full rounded-md bg-slate-950 border border-slate-800 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        value={alertId}
-                        onChange={(e) => setAlertId(e.target.value)}
-                    >
-                        <option value="">None</option>
-                        {alerts.map((a: any) => (
-                            <option key={a.id} value={a.id}>
-                                {a.name ? `${a.name} (${a.id})` : a.id}
-                            </option>
-                        ))}
-                    </select>
-                )}
-            </div>
+            {ticketType === "silence_alert" && (
+                <div className="space-y-1">
+                    <label className="text-sm text-slate-300">Alert (optional)</label>
+                    {alertsError ? (
+                        <div className="text-xs text-rose-400">Failed to load alerts</div>
+                    ) : alerts === null ? (
+                        <div className="text-xs text-slate-400">Loading alerts…</div>
+                    ) : (
+                        <select
+                            className="w-full rounded-md bg-slate-950 border border-slate-800 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            value={alertId}
+                            onChange={(e) => setAlertId(e.target.value)}
+                        >
+                            <option value="">None</option>
+                            {alerts.map((a: any) => (
+                                <option key={a.id} value={a.id}>
+                                    {a.name ? `${a.name} (${a.id})` : a.id}
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+            )}
 
-            {ticketType === "Supress Alerts" && (
+            {ticketType === "silence_alert" && (
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-sm text-slate-300">Start (local)</label>

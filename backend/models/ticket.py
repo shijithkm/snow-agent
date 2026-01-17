@@ -8,3 +8,4 @@ class TicketRequest(BaseModel):
     ticket_type: str | None = None
     start_time: datetime | None = None
     end_time: datetime | None = None
+    work_comments: str | None = None

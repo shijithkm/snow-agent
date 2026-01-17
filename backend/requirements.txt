@@ -4,3 +4,6 @@ langgraph
 pydantic
 python-dotenv
 langchain_groq
+IPython
+tavily
+# tavily-python
