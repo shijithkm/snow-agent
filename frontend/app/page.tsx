@@ -2,6 +2,7 @@
 
 import { TicketForm } from "@/components/TicketForm";
 import { TicketList } from "@/components/TicketList";
+import { WorkflowAnimation } from "@/components/WorkflowAnimation";
 import { useEffect, useState } from "react";
 
 
@@ -34,6 +35,11 @@ export default function SnowPage() {
                 </a>
                 <a href="/tickets/create" className="rounded bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 text-center">Create Ticket</a>
                 <a href="/tickets/list" className="rounded bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-100 text-center">View Tickets</a>
+            </div>
+
+            {/* Workflow Animation */}
+            <div className="mt-8 sm:mt-12">
+                <WorkflowAnimation />
             </div>
 
             {/* Available Agents Section */}
