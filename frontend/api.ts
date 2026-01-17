@@ -1,5 +1,9 @@
+// Use relative URLs to go through Next.js server proxy in Docker
+// In dev mode, can still use direct backend URL
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  typeof window !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE
+    ? process.env.NEXT_PUBLIC_API_BASE
+    : "/api";
 
 export async function getAlerts() {
   const res = await fetch(`${API_BASE}/alerts`);

@@ -73,7 +73,7 @@ def classify_intent(state):
             # Fallback to heuristic if LLM response is unclear
             logger.warning("Unclear LLM response, using heuristic for ticket %s", getattr(state, "ticket_id", "?"))
             desc = state.description.lower()
-            if "silence" in desc:
+            if any(keyword in desc for keyword in ["silence", "suppress", "mute", "disable", "stop alert", "acknowledge"]):
                 state.intent = "silence_alert"
             elif any(keyword in desc for keyword in ["know more", "how to", "what is", "explain", "search", "find", "information", "help me understand", "tell me about"]):
                 state.intent = "rfi"
@@ -83,7 +83,7 @@ def classify_intent(state):
     except Exception as e:
         logger.error("ChatGroq classification failed; using heuristic", exc_info=True)
         desc = state.description.lower()
-        if "silence" in desc:
+        if any(keyword in desc for keyword in ["silence", "suppress", "mute", "disable", "stop alert", "acknowledge"]):
             state.intent = "silence_alert"
         elif any(keyword in desc for keyword in ["know more", "how to", "what is", "explain", "search", "find", "information", "help me understand", "tell me about"]):
             state.intent = "rfi"
