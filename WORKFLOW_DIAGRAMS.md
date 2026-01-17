@@ -6,18 +6,18 @@
 graph TB
     START([START]) --> classify["Classify Intent
     classify_intent"]
-    
+
     classify -->|intent = silence_alert| grafana["Handle Grafana
     handle_grafana"]
     classify -->|intent = rfi| rfi["RFI Agent
     rfi_agent"]
     classify -->|intent = assign_l1| assign["Assign to L1
     assign_l1"]
-    
+
     grafana --> END1([END])
     rfi --> END2([END])
     assign --> END3([END])
-    
+
     style START fill:#4ade80,stroke:#22c55e,stroke-width:3px,color:#000
     style classify fill:#60a5fa,stroke:#3b82f6,stroke-width:2px
     style grafana fill:#f59e0b,stroke:#d97706,stroke-width:2px
@@ -30,21 +30,23 @@ graph TB
 
 ### Node Descriptions
 
-| Node | Function | Purpose | Output |
-|------|----------|---------|--------|
-| **classify_intent** | LLM Classification | Analyzes description to determine intent type | Sets `intent` field |
-| **handle_grafana** | Alert Suppression | Silences Grafana alert for specified time window | Sets `closed=True`, `assigned_to="Snow Agent"` |
-| **rfi_agent** | Web Research | Searches web via Tavily, summarizes with LLM | Sets `work_comments`, `closed=True` |
-| **assign_l1** | L1 Assignment | Routes to L1 support team | Sets `assigned_to="L1 Team"` |
+| Node                | Function           | Purpose                                          | Output                                         |
+| ------------------- | ------------------ | ------------------------------------------------ | ---------------------------------------------- |
+| **classify_intent** | LLM Classification | Analyzes description to determine intent type    | Sets `intent` field                            |
+| **handle_grafana**  | Alert Suppression  | Silences Grafana alert for specified time window | Sets `closed=True`, `assigned_to="Snow Agent"` |
+| **rfi_agent**       | Web Research       | Searches web via Tavily, summarizes with LLM     | Sets `work_comments`, `closed=True`            |
+| **assign_l1**       | L1 Assignment      | Routes to L1 support team                        | Sets `assigned_to="L1 Team"`                   |
 
 ### Intent Classification Logic
 
 **Prompt to LLM:**
+
 > Output 'silence_alert' if user requests alert suppression in any form (silence, mute, suppress, disable, stop, acknowledge)
 > Output 'rfi' if user asks for information/research
 > Output 'assign_l1' for all other requests
 
 **Heuristic Fallback Keywords:**
+
 - **silence_alert**: silence, suppress, mute, disable, stop alert, acknowledge
 - **rfi**: know more, how to, what is, explain, search, find, information
 - **assign_l1**: Default for unmatched patterns
@@ -56,27 +58,27 @@ graph TB
 ```mermaid
 graph TB
     START([START]) --> greeting{Action?}
-    
+
     greeting -->|action = start| greet["Generate Greeting
     generate_greeting"]
     greeting -->|action = send| extract["Extract Info
     extract_info"]
     greeting -->|user sent response| parse["Parse Response
     parse_user_response"]
-    
+
     greet --> END1([END])
     extract --> check["Check Required Fields
     check_required_fields"]
     parse --> check
-    
+
     check -->|missing_fields exist| ask["Ask for Missing
     ask_for_missing_fields"]
     check -->|all fields present| create["Create Ticket
     create_ticket_from_chat"]
-    
+
     ask --> END2([END - Wait for User])
     create --> END3([END])
-    
+
     style START fill:#4ade80,stroke:#22c55e,stroke-width:3px,color:#000
     style greeting fill:#3b82f6,stroke:#2563eb,stroke-width:2px
     style greet fill:#06b6d4,stroke:#0891b2,stroke-width:2px
@@ -92,31 +94,31 @@ graph TB
 
 ### Chatbot Nodes
 
-| Node | Function | Purpose | Output |
-|------|----------|---------|--------|
-| **generate_greeting** | Welcome Message | Sends initial greeting to user | Sets `messages` with greeting |
-| **extract_info** | LLM Extraction | Extracts intent, alert_id, description from user message | Populates state fields |
-| **parse_user_response** | Response Parser | Parses follow-up answers to fill missing fields | Updates state with new info |
-| **check_required_fields** | Validation | Checks if all required fields are present | Sets `missing_fields` list |
-| **ask_for_missing_fields** | Follow-up Generator | Generates contextual question for missing info | Adds assistant message |
-| **create_ticket_from_chat** | Ticket Creation | Creates ticket and processes via main workflow | Sets `ticket_created=True`, `ticket_id` |
+| Node                        | Function            | Purpose                                                  | Output                                  |
+| --------------------------- | ------------------- | -------------------------------------------------------- | --------------------------------------- |
+| **generate_greeting**       | Welcome Message     | Sends initial greeting to user                           | Sets `messages` with greeting           |
+| **extract_info**            | LLM Extraction      | Extracts intent, alert_id, description from user message | Populates state fields                  |
+| **parse_user_response**     | Response Parser     | Parses follow-up answers to fill missing fields          | Updates state with new info             |
+| **check_required_fields**   | Validation          | Checks if all required fields are present                | Sets `missing_fields` list              |
+| **ask_for_missing_fields**  | Follow-up Generator | Generates contextual question for missing info           | Adds assistant message                  |
+| **create_ticket_from_chat** | Ticket Creation     | Creates ticket and processes via main workflow           | Sets `ticket_created=True`, `ticket_id` |
 
 ### Conversation Flow Example
 
 ```
 1. User: "start"
    → greeting (action=start) → generate_greeting → END
-   
+
 2. User: "suppress alert A-1"
    → extract_info → check_required_fields
    → [alert_id=A-1, description="suppress alert A-1"]
    → create_ticket → END
-   
+
 3. User: "block ip address"
    → extract_info → check_required_fields
    → [description="block ip address", missing: which IP?]
    → ask_for_missing_fields → END
-   
+
 4. User: "192.168.1.100"
    → parse_user_response → check_required_fields
    → [description="block ip address 192.168.1.100"]
@@ -124,18 +126,18 @@ graph TB
 ```
 
 ---- Next.js"]
-        UI["User Interface
-        Chat / Forms"]
-        API_CLIENT["API Client
-        api.ts"]
-    end
-    
+UI["User Interface
+Chat / Forms"]
+API_CLIENT["API Client
+api.ts"]
+end
+
     subgraph Backend["Backend - FastAPI"]
         CHAT["/chat Endpoint
         main.py"]
         PROCESS["/process_ticket Endpoint
         main.py"]
-        
+
         subgraph ChatbotFlow["Chatbot Workflow"]
             CB_GREETING[greeting]
             CB_EXTRACT[extract]
@@ -143,7 +145,7 @@ graph TB
             CB_ASK[ask_missing]
             CB_CREATE[create_ticket]
         end
-        
+
         subgraph MainFlow["Main Ticket Workflow"]
             M_CLASSIFY[classify_intent]
             M_GRAFANA[handle_grafana]
@@ -151,7 +153,7 @@ graph TB
             M_L1[assign_l1]
         end
     end
-    
+
     subgraph External["External Services"]
         GROQ["Groq LLM
         llama-3.1-8b"]
@@ -161,34 +163,35 @@ graph TB
         Alert Suppression"]
         SNOW_API["ServiceNow API
         Ticket Management"
-    
+
     subgraph External["External Services"]
         GROQ[Groq LLM<br/>llama-3.1-8b]
         TAVILY[Tavily Search<br/>Web Research]
         GRAFANA_API[Grafana API<br/>Alert Suppression]
         SNOW_API[ServiceNow API<br/>Ticket Management]
     end
-    
+
     UI -->|HTTP POST| API_CLIENT
     API_CLIENT -->|/chat| CHAT
     API_CLIENT -->|/process_ticket| PROCESS
-    
+
     CHAT --> ChatbotFlow
     CB_CREATE --> MainFlow
     PROCESS --> MainFlow
-    
+
     M_CLASSIFY -.->|LLM Classification| GROQ
     M_GRAFANA -.->|Silence Alert| GRAFANA_API
     M_RFI -.->|Web Search| TAVILY
     M_RFI -.->|Summarization| GROQ
     MainFlow -.->|Store Tickets| SNOW_API
-    
+
     style Frontend fill:#1e293b,stroke:#334155,stroke-width:2px,color:#fff
     style Backend fill:#0f172a,stroke:#1e293b,stroke-width:2px,color:#fff
     style External fill:#581c87,stroke:#6b21a8,stroke-width:2px,color:#fff
     style ChatbotFlow fill:#164e63,stroke:#155e75,stroke-width:2px,color:#fff
     style MainFlow fill:#7c2d12,stroke:#9a3412,stroke-width:2px,color:#fff
-```
+
+````
 
 ---
 
@@ -209,7 +212,7 @@ class SNOWState(BaseModel):
     end_time: Optional[datetime] = None       # Suppression end time
     result: Optional[str] = None              # Result message
     work_comments: Optional[str] = None       # Research results or notes
-```
+````
 
 ### ChatbotState (Conversation Workflow)
 
@@ -262,15 +265,15 @@ DECISION LOGIC:
 1. If intent == "silence_alert":
    - Required: alert_id
    - Optional: start_time, end_time
-   
+
 2. If description is vague (< 10 chars or generic):
    - Add to missing_fields: "description_details"
-   
+
 3. Check details_requested flag:
    - If True and still missing → skip asking (avoid loops)
    - If False → allow asking once
 
-OUTPUT: 
+OUTPUT:
 - state.missing_fields = [] → route to "complete"
 - state.missing_fields = [...] → route to "has_missing"
 ```
@@ -281,21 +284,21 @@ OUTPUT:
 
 ### Main Workflow
 
-| Scenario | Handling |
-|----------|----------|
-| LLM API Failure | Fall back to heuristic keyword matching |
+| Scenario              | Handling                                        |
+| --------------------- | ----------------------------------------------- |
+| LLM API Failure       | Fall back to heuristic keyword matching         |
 | Tavily Search Failure | Return formatted error message in work_comments |
-| Grafana API Failure | Log error, set result message |
-| Vague Description | Route to L1 for manual handling |
+| Grafana API Failure   | Log error, set result message                   |
+| Vague Description     | Route to L1 for manual handling                 |
 
 ### Chatbot Workflow
 
-| Scenario | Handling |
-|----------|----------|
-| Infinite Loop Prevention | `details_requested` flag prevents repeated asking |
-| Session Not Found | Create new session with greeting |
-| User Provides Partial Info | Parse response, update state, re-check fields |
-| User Changes Topic | Extract new intent, create new ticket |
+| Scenario                   | Handling                                          |
+| -------------------------- | ------------------------------------------------- |
+| Infinite Loop Prevention   | `details_requested` flag prevents repeated asking |
+| Session Not Found          | Create new session with greeting                  |
+| User Provides Partial Info | Parse response, update state, re-check fields     |
+| User Changes Topic         | Extract new intent, create new ticket             |
 
 ---
 
@@ -384,23 +387,24 @@ Result: Ticket TKT-3, Type: general, Assigned: L1 Team
 
 ## 8. Performance Characteristics
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| **Average Latency** | | |
-| - Alert Suppression | 500-1000ms | Grafana API call + LLM classification |
-| - RFI Agent | 2-5s | Web search (1-3s) + LLM summarization (1-2s) |
-| - L1 Assignment | 200-500ms | LLM classification only |
-| **Concurrent Sessions** | Unlimited | Stateless execution per request |
-| **LLM Tokens** | | |
-| - Classification | ~150 tokens | System prompt + user message |
-| - RFI Summary | ~800 tokens | Context + summary generation |
-| **Web Search** | Max 3 results | Tavily API limit for cost optimization |
+| Metric                  | Value         | Notes                                        |
+| ----------------------- | ------------- | -------------------------------------------- |
+| **Average Latency**     |               |                                              |
+| - Alert Suppression     | 500-1000ms    | Grafana API call + LLM classification        |
+| - RFI Agent             | 2-5s          | Web search (1-3s) + LLM summarization (1-2s) |
+| - L1 Assignment         | 200-500ms     | LLM classification only                      |
+| **Concurrent Sessions** | Unlimited     | Stateless execution per request              |
+| **LLM Tokens**          |               |                                              |
+| - Classification        | ~150 tokens   | System prompt + user message                 |
+| - RFI Summary           | ~800 tokens   | Context + summary generation                 |
+| **Web Search**          | Max 3 results | Tavily API limit for cost optimization       |
 
 ---
 
 ## Documentation
 
 For detailed implementation documentation:
+
 - [Backend Documentation](BACKEND_DOCUMENTATION.md)
 - [Frontend Documentation](FRONTEND_DOCUMENTATION.md)
 - [Main README](README.md)
