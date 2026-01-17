@@ -4,11 +4,15 @@
 
 ```mermaid
 graph TB
-    START([START]) --> classify[Classify Intent<br/>classify_intent]
+    START([START]) --> classify["Classify Intent
+    classify_intent"]
     
-    classify -->|intent = silence_alert| grafana[Handle Grafana<br/>handle_grafana]
-    classify -->|intent = rfi| rfi[RFI Agent<br/>rfi_agent]
-    classify -->|intent = assign_l1| assign[Assign to L1<br/>assign_l1]
+    classify -->|intent = silence_alert| grafana["Handle Grafana
+    handle_grafana"]
+    classify -->|intent = rfi| rfi["RFI Agent
+    rfi_agent"]
+    classify -->|intent = assign_l1| assign["Assign to L1
+    assign_l1"]
     
     grafana --> END1([END])
     rfi --> END2([END])
@@ -53,16 +57,22 @@ graph TB
 graph TB
     START([START]) --> greeting{Action?}
     
-    greeting -->|action = start| greet[Generate Greeting<br/>generate_greeting]
-    greeting -->|action = send| extract[Extract Info<br/>extract_info]
-    greeting -->|user sent response| parse[Parse Response<br/>parse_user_response]
+    greeting -->|action = start| greet["Generate Greeting
+    generate_greeting"]
+    greeting -->|action = send| extract["Extract Info
+    extract_info"]
+    greeting -->|user sent response| parse["Parse Response
+    parse_user_response"]
     
     greet --> END1([END])
-    extract --> check[Check Required Fields<br/>check_required_fields]
+    extract --> check["Check Required Fields
+    check_required_fields"]
     parse --> check
     
-    check -->|missing_fields exist| ask[Ask for Missing<br/>ask_for_missing_fields]
-    check -->|all fields present| create[Create Ticket<br/>create_ticket_from_chat]
+    check -->|missing_fields exist| ask["Ask for Missing
+    ask_for_missing_fields"]
+    check -->|all fields present| create["Create Ticket
+    create_ticket_from_chat"]
     
     ask --> END2([END - Wait for User])
     create --> END3([END])
@@ -113,20 +123,18 @@ graph TB
    → create_ticket → END
 ```
 
----
-
-## 3. Combined System Architecture
-
-```mermaid
-graph TB
-    subgraph Frontend["Frontend (Next.js)"]
-        UI[User Interface<br/>Chat / Forms]
-        API_CLIENT[API Client<br/>api.ts]
+---- Next.js"]
+        UI["User Interface
+        Chat / Forms"]
+        API_CLIENT["API Client
+        api.ts"]
     end
     
-    subgraph Backend["Backend (FastAPI)"]
-        CHAT[/chat Endpoint<br/>main.py]
-        PROCESS[/process_ticket Endpoint<br/>main.py]
+    subgraph Backend["Backend - FastAPI"]
+        CHAT["/chat Endpoint
+        main.py"]
+        PROCESS["/process_ticket Endpoint
+        main.py"]
         
         subgraph ChatbotFlow["Chatbot Workflow"]
             CB_GREETING[greeting]
@@ -143,6 +151,16 @@ graph TB
             M_L1[assign_l1]
         end
     end
+    
+    subgraph External["External Services"]
+        GROQ["Groq LLM
+        llama-3.1-8b"]
+        TAVILY["Tavily Search
+        Web Research"]
+        GRAFANA_API["Grafana API
+        Alert Suppression"]
+        SNOW_API["ServiceNow API
+        Ticket Management"
     
     subgraph External["External Services"]
         GROQ[Groq LLM<br/>llama-3.1-8b]
