@@ -110,10 +110,9 @@ def handle_grafana(state):
     end = getattr(state, "end_time", None)
     logger.info("Handling grafana for ticket %s: alert=%s start=%s end=%s", getattr(state, "ticket_id", "?"), state.alert_id, start, end)
     result = silence_alert(state.alert_id, start, end)
-    # Snow Agent handles suppression: mark assigned and schedule closure
+    # Snow Agent handles suppression: mark assigned and close immediately
     state.assigned_to = "Snow Agent"
-    # Do not close immediately; main will schedule closure after a delay
-    state.closed = False
+    state.closed = True
     state.result = f"Grafana alert {state.alert_id} silenced by Snow Agent: {result}"
     logger.info("Grafana handled for ticket %s: result=%s", getattr(state, "ticket_id", "?"), result)
     return state
@@ -179,6 +178,7 @@ def rfi_agent(state):
                 
                 state.work_comments = final_response[:1000]
                 state.result = f"RFI processed: Generated summary from {len(results)} sources"
+                state.closed = True
                 logger.info("RFI handled for ticket %s: summary generated from %d results", 
                            getattr(state, "ticket_id", "?"), len(results))
             except Exception as llm_error:
@@ -193,13 +193,16 @@ def rfi_agent(state):
                 
                 state.work_comments = formatted_results[:1000]
                 state.result = f"RFI processed: Found {len(results)} results"
+                state.closed = True
         else:
             state.work_comments = "No relevant information found for your query. Please provide more details or contact the IT support team for assistance."
             state.result = "RFI processed: No results found"
+            state.closed = True
             logger.info("RFI handled for ticket %s: no results found", getattr(state, "ticket_id", "?"))
     except Exception as e:
         logger.error("TavilyClient search failed for ticket %s", getattr(state, "ticket_id", "?"), exc_info=True)
         state.work_comments = f"Unable to process your research request at this time. Error: {str(e)[:100]}. Please contact IT support for assistance."
         state.result = "RFI processing failed"
+        state.closed = True
 
     return state

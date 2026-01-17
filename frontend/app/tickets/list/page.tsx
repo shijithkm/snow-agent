@@ -29,9 +29,6 @@ export default function TicketsListPage() {
 
     useEffect(() => {
         loadTickets();
-        // Refresh tickets every 3 seconds to see updates
-        const interval = setInterval(loadTickets, 3000);
-        return () => clearInterval(interval);
     }, []);
 
     return (
