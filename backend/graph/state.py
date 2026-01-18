@@ -16,3 +16,5 @@ class SNOWState(BaseModel):
     work_comments: Optional[str] = None
     rag_found: Optional[bool] = None
     rag_results: Optional[Any] = None
+    info_found: Optional[bool] = None
+    info_results: Optional[Any] = None

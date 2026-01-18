@@ -28,9 +28,16 @@ const workflowSteps: WorkflowStep[] = [
     {
         id: "route",
         label: "Smart Routing",
-        description: "Routes to Grafana, RAG, or L1 agent",
+        description: "Routes to Grafana, Info, or L1 agent",
         icon: "🔀",
         color: "bg-amber-500",
+    },
+    {
+        id: "info",
+        label: "Info Search",
+        description: "Searches Confluence for documentation",
+        icon: "📚",
+        color: "bg-cyan-500",
     },
     {
         id: "rag",
@@ -147,9 +154,9 @@ export function WorkflowAnimation() {
             </div>
 
             {/* Agent Routing Visualization */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3 || activeStep === 4
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3 || activeStep === 5
                         ? "bg-blue-900/30 border-blue-500 scale-105"
                         : "bg-slate-800/30 border-slate-700"
                         }`}
@@ -163,19 +170,32 @@ export function WorkflowAnimation() {
 
                 <div
                     className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3
-                        ? "bg-violet-900/30 border-violet-500 scale-105"
+                        ? "bg-cyan-900/30 border-cyan-500 scale-105"
                         : "bg-slate-800/30 border-slate-700"
                         }`}
                 >
                     <div className="flex items-center gap-2 text-xs">
                         <span className="text-lg">📚</span>
+                        <span className="font-semibold text-cyan-300">Info Agent</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">Confluence Search</p>
+                </div>
+
+                <div
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 4
+                        ? "bg-violet-900/30 border-violet-500 scale-105"
+                        : "bg-slate-800/30 border-slate-700"
+                        }`}
+                >
+                    <div className="flex items-center gap-2 text-xs">
+                        <span className="text-lg">🔍</span>
                         <span className="font-semibold text-violet-300">RAG Agent</span>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">Company Docs Search</p>
                 </div>
 
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 4
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 5
                         ? "bg-purple-900/30 border-purple-500 scale-105"
                         : "bg-slate-800/30 border-slate-700"
                         }`}
@@ -188,7 +208,7 @@ export function WorkflowAnimation() {
                 </div>
 
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 4
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 5
                         ? "bg-emerald-900/30 border-emerald-500 scale-105"
                         : "bg-slate-800/30 border-slate-700"
                         }`}
