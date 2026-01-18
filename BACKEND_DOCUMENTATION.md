@@ -127,9 +127,9 @@ Retrieves chat conversation history.
 
 ```
 START → classify_intent
-         ├─ silence_alert → handle_grafana → END
-         ├─ rfi → rfi_agent → END
-         └─ assign_l1 → assign_l1 → END
+         ├─ silence_alert → grafana_agent → END
+         ├─ rfi → rag_agent → [if found: END | if not: rfi_agent → END]
+         └─ assign_l1 → l1_agent → END (ticket stays OPEN)
 ```
 
 **States**: Defined in `SNOWState` (see State Models below)
@@ -159,19 +159,21 @@ START → classify_intent
 ```
 Output 'silence_alert' if user requests alert suppression in any form
 (silence, mute, suppress, disable, stop, acknowledge, or similar)
-Output 'rfi' if user asks for information/research
-Output 'assign_l1' for all other requests
+Output 'rfi' if user asks for information/research (what is, how to, explain, tell me about)
+Output 'assign_l1' for technical issues, broken systems, or access requests
 ```
 
 **Heuristic Keywords**:
 
 - **silence_alert**: silence, suppress, mute, disable, stop alert, acknowledge
-- **rfi**: know more, how to, what is, explain, search, find, information, help me understand, tell me about
-- **assign_l1**: All other requests (default fallback)
+- **rfi**: what is, how to, explain, tell me about, search for, company policy, guidelines
+- **assign_l1**: not working, error, broken, can't access, need access (default fallback)
 
 **Returns**: Updated state with `intent` field set.
 
 #### `handle_grafana(state)`
+
+#### `grafana_agent(state)`
 
 **Purpose**: Handles alert suppression requests by calling Grafana service.
 
@@ -185,9 +187,32 @@ Output 'assign_l1' for all other requests
 
 **Returns**: Updated state with suppression confirmation.
 
+#### `rag_agent(state)`
+
+**Purpose**: Searches company documents using vector database before web search.
+
+**Logic**:
+
+1. Search FAISS vector database for relevant company documents (k=3)
+2. Filter results by relevance score (threshold < 1.5)
+3. If relevant documents found:
+   - Use LLM to generate answer from company context
+   - Check if answer indicates insufficient information
+   - If insufficient, set `rag_found = False` to trigger RFI fallback
+   - If sufficient, set `work_comments`, `closed = True`, `rag_found = True`
+4. If no relevant documents, set `rag_found = False` for RFI fallback
+
+**Dependencies**:
+
+- FAISS vector database
+- HuggingFace sentence-transformers embeddings
+- ChatGroq for answer generation
+
+**Returns**: Updated state with `rag_found` flag and results if found.
+
 #### `rfi_agent(state)`
 
-**Purpose**: Handles information requests using web search and LLM summarization.
+**Purpose**: Handles information requests using web search and LLM summarization (fallback from RAG).
 
 **Logic**:
 
@@ -206,14 +231,15 @@ Output 'assign_l1' for all other requests
 
 **Returns**: Updated state with research results in `work_comments`.
 
-#### `assign_l1(state)`
+#### `l1_agent(state)`
 
-**Purpose**: Routes general support tickets to L1 team.
+**Purpose**: Routes technical support tickets to L1 team. Tickets remain OPEN for manual processing.
 
 **Logic**:
 
 1. Set `assigned_to = "L1 Team"`
 2. Set result message
+3. Does NOT set `closed = True` - ticket stays OPEN
 
 **Returns**: Updated state.
 
@@ -335,6 +361,8 @@ class SNOWState(BaseModel):
     ticket_id: Optional[str] = None
     description: Optional[str] = None
     intent: Optional[str] = None          # "silence_alert" | "rfi" | "assign_l1"
+    rag_found: Optional[bool] = None      # True if RAG found answer, False to fallback to RFI
+    rag_results: Optional[Any] = None     # RAG search results
     alert_id: Optional[str] = None
     ticket_type: Optional[str] = None
     assigned_to: Optional[str] = None     # "Snow Agent" | "L1 Team" | "RFI Agent"
@@ -353,7 +381,7 @@ Chatbot conversation state model.
 class ChatbotState(BaseModel):
     messages: List[ChatMessage] = []
     description: Optional[str] = None
-    intent: Optional[str] = None
+    intent: Optional[str] = None          # "silence_alert" | "rfi" | "assign_l1"
     alert_id: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
@@ -362,7 +390,7 @@ class ChatbotState(BaseModel):
     ticket_created: bool = False
     ticket_id: Optional[str] = None
     needs_user_input: bool = True
-    target_agent: Optional[str] = None
+    target_agent: Optional[str] = None    # "suppress_agent" | "rfi_agent" | "l1_agent"
 ```
 
 ---
@@ -443,6 +471,53 @@ Creates a new ServiceNow ticket.
 - For silence_alert: automatically calls `silence_alert()` in Grafana
 - Sets initial status to "suppressed" for silence_alert, "open" otherwise
 
+#### RAG Service (`services/rag_service.py`)
+
+**Purpose**: Manages document storage, training, and vector database search.
+
+**Data Stores**:
+
+- `./data/uploads/`: Original uploaded documents
+- `./data/vectordb/`: FAISS vector database index
+- `documents_store`: In-memory metadata dictionary
+
+**Key Components**:
+
+- **Embeddings**: HuggingFace `all-MiniLM-L6-v2` model
+- **Vector DB**: FAISS with L2 distance
+- **Text Splitter**: RecursiveCharacterTextSplitter (chunk_size=1000, overlap=200)
+
+**Functions**:
+
+##### `save_document(file_content, filename, metadata=None)`
+
+Saves uploaded document to disk.
+
+**Returns**: Document ID (e.g., "doc_abc123")
+
+##### `load_document(doc_id)`
+
+Loads and parses document (supports PDF, MD, TXT, DOC, DOCX).
+
+**Returns**: List of langchain Documents
+
+##### `train_document(doc_id)`
+
+Processes document: chunks text, generates embeddings, updates FAISS index.
+
+**Returns**: Number of chunks created
+
+##### `search(query, k=3)`
+
+Searches vector database for relevant documents.
+
+**Parameters**:
+
+- `query`: Search query string
+- `k`: Number of results to return
+
+**Returns**: List of results with content, metadata, and relevance scores
+
 ---
 
 ## Configuration
@@ -477,30 +552,57 @@ TAVILY_API_KEY=tvly-dev-...                   # Tavily API key for web search
 **Flow**:
 
 1. `classify_intent`: Detects "silence_alert" intent
-2. `handle_grafana`:
+2. `grafana_agent`:
    - Calls `silence_alert("A-1", start, end)`
    - Sets assigned_to = "Snow Agent"
    - Sets closed = True
 3. Ticket status: "closed"
 4. Grafana alert A-1 status: "silenced"
 
-### Example 2: Information Request (RFI)
+### Example 2: Information Request with RAG
 
-**User Request**: "what is kubernetes?"
+**User Request**: "what is the company password policy?"
 
 **Flow**:
 
 1. `classify_intent`: Detects "rfi" intent
-2. `rfi_agent`:
-   - TavilyClient searches web for "what is kubernetes?"
+2. `rag_agent`:
+   - Searches FAISS vector database for company documents
+   - Finds "test_company_policy.md" with relevance score 0.8
+   - LLM generates answer from company document context
+   - Sets work_comments with answer and sources
+   - Sets closed = True, rag_found = True
+3. Ticket status: "closed"
+4. User receives answer from company documentation
+
+**Alternative Flow (No Relevant Docs)**:
+
+1. `classify_intent`: Detects "rfi" intent
+2. `rag_agent`:
+   - Searches vector database, no relevant documents found
+   - Sets rag_found = False
+3. Workflow routes to `rfi_agent` (fallback):
+   - TavilyClient searches web
    - Retrieves top 3 results
    - LLM summarizes results
-   - Formats with source URLs
-3. work_comments set with summary
+   - Sets work_comments with summary and URLs
 4. Ticket status: "closed"
-5. User receives research summary
+5. User receives web search results
 
-### Example 3: Vague Description Handling
+### Example 3: Technical Support (L1)
+
+**User Request**: "PBS app is not working"
+
+**Flow**:
+
+1. `classify_intent`: Detects "assign_l1" intent (broken system)
+2. `l1_agent`:
+   - Sets assigned_to = "L1 Team"
+   - Does NOT close ticket
+3. Ticket status: "open" (awaiting L1 team action)
+4. L1 team manually processes and resolves
+
+### Example 4: Vague Description Handling
 
 **User Request**: "block ip address"
 

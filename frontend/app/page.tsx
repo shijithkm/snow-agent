@@ -35,6 +35,9 @@ export default function SnowPage() {
                 </a>
                 <a href="/tickets/create" className="rounded bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 text-center">Create Ticket</a>
                 <a href="/tickets/list" className="rounded bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-100 text-center">View Tickets</a>
+                <a href="/admin/rag" className="rounded bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 text-center">
+                    🔧 Admin: RAG Docs
+                </a>
             </div>
 
             {/* Workflow Animation */}
@@ -47,7 +50,7 @@ export default function SnowPage() {
                 <h2 className="text-xl sm:text-2xl font-bold">Available AI Agents</h2>
                 <p className="text-xs sm:text-sm text-slate-300">Our intelligent automation platform provides specialized agents to handle different types of requests:</p>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {/* Snow Agent */}
                     <div className="rounded-lg bg-slate-900 border border-slate-800 p-4 sm:p-6 space-y-3">
                         <div className="flex items-center gap-3">
@@ -55,10 +58,24 @@ export default function SnowPage() {
                             <h3 className="text-base sm:text-lg font-semibold text-amber-300">Snow Agent</h3>
                         </div>
                         <p className="text-xs sm:text-sm text-slate-300">
-                            Automatically handles alert suppression requests. Silences Grafana alerts for specified time windows and manages alert lifecycle. Tickets are auto-closed after suppression is complete.
+                            Automatically handles alert suppression requests. Silences Grafana alerts for specified time windows and manages alert lifecycle.
                         </p>
                         <div className="text-xs text-slate-400">
                             <strong>Handles:</strong> Alert silencing, suppression windows
+                        </div>
+                    </div>
+
+                    {/* RAG Agent - NEW */}
+                    <div className="rounded-lg bg-purple-900 border border-purple-700 p-4 sm:p-6 space-y-3">
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl sm:text-3xl">🤖</span>
+                            <h3 className="text-base sm:text-lg font-semibold text-purple-300">RAG Agent</h3>
+                        </div>
+                        <p className="text-xs sm:text-sm text-slate-300">
+                            Searches company documents first. Uses trained knowledge base to answer questions from internal docs, policies, and guides before searching the web.
+                        </p>
+                        <div className="text-xs text-slate-400">
+                            <strong>Handles:</strong> Company docs, policies, internal guides
                         </div>
                     </div>
 
@@ -69,10 +86,10 @@ export default function SnowPage() {
                             <h3 className="text-base sm:text-lg font-semibold text-amber-300">RFI Agent</h3>
                         </div>
                         <p className="text-xs sm:text-sm text-slate-300">
-                            Performs intelligent web research to answer your questions. Uses advanced search capabilities to find relevant information and provides concise, policy-aligned summaries with source references.
+                            Performs intelligent web research when RAG Agent can't find answers. Uses advanced search to find relevant information and provides concise summaries with sources.
                         </p>
                         <div className="text-xs text-slate-400">
-                            <strong>Handles:</strong> Information requests, documentation searches, how-to queries
+                            <strong>Handles:</strong> Web research, external documentation
                         </div>
                     </div>
 

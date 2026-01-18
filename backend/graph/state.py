@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime
 
 class SNOWState(BaseModel):
@@ -14,3 +14,5 @@ class SNOWState(BaseModel):
     end_time: Optional[datetime] = None
     result: Optional[str] = None
     work_comments: Optional[str] = None
+    rag_found: Optional[bool] = None
+    rag_results: Optional[Any] = None

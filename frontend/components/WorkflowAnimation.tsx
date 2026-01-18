@@ -21,28 +21,35 @@ const workflowSteps: WorkflowStep[] = [
     {
         id: "classify",
         label: "Intent Classification",
-        description: "LLM analyzes ticket to determine type",
+        description: "LLM classifies: Alert, RFI, or L1 Support",
         icon: "🧠",
         color: "bg-purple-500",
     },
     {
         id: "route",
         label: "Smart Routing",
-        description: "System routes to appropriate agent",
+        description: "Routes to Grafana, RAG, or L1 agent",
         icon: "🔀",
         color: "bg-amber-500",
     },
     {
+        id: "rag",
+        label: "RAG Search",
+        description: "Searches company docs with vector DB",
+        icon: "🔍",
+        color: "bg-violet-500",
+    },
+    {
         id: "process",
         label: "Agent Processing",
-        description: "Specialized agent handles the request",
+        description: "Grafana/RFI/L1 agent handles request",
         icon: "⚙️",
         color: "bg-emerald-500",
     },
     {
         id: "complete",
         label: "Ticket Resolved",
-        description: "Results saved and ticket closed",
+        description: "Results saved and ticket updated",
         icon: "✅",
         color: "bg-green-500",
     },
@@ -72,7 +79,7 @@ export function WorkflowAnimation() {
         <div className="rounded-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700 p-6 sm:p-8 space-y-6">
             <div className="text-center space-y-2">
                 <h2 className="text-xl sm:text-2xl font-bold text-white">
-                    🔄 LangGraph Workflow
+                    🔄 SNOW Agentic AI Workflow
                 </h2>
                 <p className="text-sm text-slate-300">
                     Watch how tickets flow through our AI-powered system
@@ -103,8 +110,8 @@ export function WorkflowAnimation() {
                             {/* Icon Circle */}
                             <div
                                 className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center text-3xl sm:text-4xl transition-all duration-300 ${index === activeStep
-                                        ? `${step.color} shadow-lg shadow-${step.color}/50 animate-pulse`
-                                        : "bg-slate-800"
+                                    ? `${step.color} shadow-lg shadow-${step.color}/50 animate-pulse`
+                                    : "bg-slate-800"
                                     }`}
                             >
                                 {step.icon}
@@ -140,44 +147,57 @@ export function WorkflowAnimation() {
             </div>
 
             {/* Agent Routing Visualization */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3 && activeStep % 3 === 0
-                            ? "bg-blue-900/30 border-blue-500 scale-105"
-                            : "bg-slate-800/30 border-slate-700"
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3 || activeStep === 4
+                        ? "bg-blue-900/30 border-blue-500 scale-105"
+                        : "bg-slate-800/30 border-slate-700"
                         }`}
                 >
                     <div className="flex items-center gap-2 text-xs">
-                        <span className="text-lg">🤖</span>
-                        <span className="font-semibold text-amber-300">Snow Agent</span>
+                        <span className="text-lg">🔔</span>
+                        <span className="font-semibold text-blue-300">Grafana Agent</span>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">Alert Suppression</p>
                 </div>
 
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3 && activeStep % 3 === 1
-                            ? "bg-purple-900/30 border-purple-500 scale-105"
-                            : "bg-slate-800/30 border-slate-700"
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3
+                        ? "bg-violet-900/30 border-violet-500 scale-105"
+                        : "bg-slate-800/30 border-slate-700"
                         }`}
                 >
                     <div className="flex items-center gap-2 text-xs">
-                        <span className="text-lg">🤖</span>
-                        <span className="font-semibold text-amber-300">RFI Agent</span>
+                        <span className="text-lg">📚</span>
+                        <span className="font-semibold text-violet-300">RAG Agent</span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Research & Info</p>
+                    <p className="text-xs text-slate-400 mt-1">Company Docs Search</p>
                 </div>
 
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3 && activeStep % 3 === 2
-                            ? "bg-emerald-900/30 border-emerald-500 scale-105"
-                            : "bg-slate-800/30 border-slate-700"
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 4
+                        ? "bg-purple-900/30 border-purple-500 scale-105"
+                        : "bg-slate-800/30 border-slate-700"
+                        }`}
+                >
+                    <div className="flex items-center gap-2 text-xs">
+                        <span className="text-lg">🌐</span>
+                        <span className="font-semibold text-purple-300">RFI Agent</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">Web Search Fallback</p>
+                </div>
+
+                <div
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 4
+                        ? "bg-emerald-900/30 border-emerald-500 scale-105"
+                        : "bg-slate-800/30 border-slate-700"
                         }`}
                 >
                     <div className="flex items-center gap-2 text-xs">
                         <span className="text-lg">👤</span>
                         <span className="font-semibold text-slate-200">L1 Team</span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">General Support</p>
+                    <p className="text-xs text-slate-400 mt-1">Technical Support</p>
                 </div>
             </div>
 
@@ -203,6 +223,8 @@ export function WorkflowAnimation() {
                 <span className="font-semibold text-emerald-400">LangGraph</span>
                 <span>+</span>
                 <span className="font-semibold text-purple-400">Groq LLM</span>
+                <span>+</span>
+                <span className="font-semibold text-violet-400">FAISS Vector DB</span>
                 <span>+</span>
                 <span className="font-semibold text-blue-400">FastAPI</span>
             </div>

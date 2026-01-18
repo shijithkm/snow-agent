@@ -27,17 +27,23 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
 def classify_intent(state):
-    # Check if ticket_type explicitly specifies RFI
-    if state.ticket_type and state.ticket_type.lower() in ["rfi", "request_for_information"]:
-        state.intent = "rfi"
-        logger.info("Ticket %s classified as RFI based on ticket_type", getattr(state, "ticket_id", "?"))
-        return state
-    
-    # Check if ticket_type explicitly specifies silence_alert
-    if state.ticket_type and "silence" in state.ticket_type.lower():
-        state.intent = "silence_alert"
-        logger.info("Ticket %s classified as silence_alert based on ticket_type", getattr(state, "ticket_id", "?"))
-        return state
+    # Check if ticket_type is already set (from chatbot or API)
+    if state.ticket_type:
+        ticket_type_lower = state.ticket_type.lower()
+        
+        # Map ticket_type to intent
+        if ticket_type_lower in ["rfi", "request_for_information"]:
+            state.intent = "rfi"
+            logger.info("Ticket %s classified as RFI based on ticket_type", getattr(state, "ticket_id", "?"))
+            return state
+        elif "silence" in ticket_type_lower or ticket_type_lower == "silence_alert":
+            state.intent = "silence_alert"
+            logger.info("Ticket %s classified as silence_alert based on ticket_type", getattr(state, "ticket_id", "?"))
+            return state
+        elif ticket_type_lower == "assign_l1":
+            state.intent = "assign_l1"
+            logger.info("Ticket %s classified as assign_l1 based on ticket_type", getattr(state, "ticket_id", "?"))
+            return state
     
     system = {
     "role": "system",
@@ -104,7 +110,7 @@ def _heuristic_assign(state):
     logger.info("Heuristic assignment for ticket %s: %s", getattr(state, "ticket_id", "?"), state.assigned_to)
     return state
 
-def handle_grafana(state):
+def grafana_agent(state):
     # Use provided suppression window if available
     start = getattr(state, "start_time", None)
     end = getattr(state, "end_time", None)
@@ -117,7 +123,7 @@ def handle_grafana(state):
     logger.info("Grafana handled for ticket %s: result=%s", getattr(state, "ticket_id", "?"), result)
     return state
 
-def assign_l1(state):
+def l1_agent(state):
     state.assigned_to = "L1 Team"
     state.result = "Ticket assigned to L1 support"
     return state

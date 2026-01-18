@@ -114,11 +114,24 @@ def extract_info(state: ChatbotState) -> ChatbotState:
         "content": (
             "You are an intent classifier for a ServiceNow ticketing system. "
             "Classify the user's message into EXACTLY one of these intents.\n\n"
-            "Output ONLY ONE WORD: 'silence_alert', 'rfi', or 'general'\n\n"
-            "Classification rules:\n"
-            "- If user says 'RFI', 'Information Request', 'Information Requests', or asks for research/information → output: rfi\n"
-            "- If user says 'Alert Suppression', 'silence alert', 'suppress alert' → output: silence_alert\n"
-            "- If user says 'General Support' or any other request → output: general\n\n"
+            "Output ONLY ONE WORD: 'silence_alert', 'rfi', or 'assign_l1'\n\n"
+            "CRITICAL CLASSIFICATION RULES:\n\n"
+            "Choose 'rfi' when user is:\n"
+            "- Asking WHAT IS something (policies, procedures, guidelines, definitions)\n"
+            "- Asking HOW TO do something (steps, instructions, process)\n"
+            "- Requesting INFORMATION or RESEARCH (looking up details, finding documentation)\n"
+            "- Asking EXPLAIN or TELL ME ABOUT a topic\n"
+            "- Questions starting with: what, how, why, where, when, explain, tell me\n"
+            "Examples: 'what is the password policy', 'how to reset password', 'tell me about leave policy'\n\n"
+            "Choose 'silence_alert' when user wants to:\n"
+            "- Silence, suppress, mute, or disable an alert\n"
+            "- Stop or acknowledge an alert\n\n"
+            "Choose 'assign_l1' when user:\n"
+            "- Reports a BROKEN or NOT WORKING system/service\n"
+            "- Needs ACCESS or PERMISSION (unlock account, grant access)\n"
+            "- Has an ERROR or PROBLEM that needs fixing\n"
+            "- Requests a TASK to be performed (create user, block IP)\n"
+            "Examples: 'my account is locked', 'I can't access the system', 'reset my password'\n\n"
             "User message: {message}"
         )
     }
@@ -137,18 +150,22 @@ def extract_info(state: ChatbotState) -> ChatbotState:
         elif "rfi" in intent:
             state.intent = "rfi"
             state.target_agent = "rfi_agent"
+        elif "assign_l1" in intent:
+            state.intent = "assign_l1"
+            state.target_agent = "l1_agent"
         else:
-            state.intent = "general"
-            state.target_agent = "ritm_agent"
+            # Default to L1 agent for unclear cases
+            state.intent = "assign_l1"
+            state.target_agent = "l1_agent"
     except Exception as e:
         logger.error("Failed to extract intent", exc_info=True)
-        state.intent = "general"
-        state.target_agent = "ritm_agent"
+        state.intent = "assign_l1"
+        state.target_agent = "l1_agent"
     
     # Only store description if the message is more than just the intent
     # Don't store generic phrases like "Information Request", "Alert Suppression", etc.
     last_msg = user_messages[-1].lower().strip()
-    generic_phrases = ["information request", "alert suppression", "general support", "rfi", "silence alert", "suppress alert"]
+    generic_phrases = ["information request", "alert suppression", "l1 support", "rfi", "silence alert", "suppress alert", "assign l1"]
     
     is_generic = any(phrase in last_msg for phrase in generic_phrases)
     logger.info("Checking description - last_msg: '%s', is_generic: %s, current description: '%s'", last_msg, is_generic, state.description)
@@ -179,8 +196,8 @@ def check_required_fields(state: ChatbotState) -> ChatbotState:
         # Only need description
         if not state.description:
             state.missing_fields.append("description")
-    else:
-        # General ticket needs description
+    elif state.intent == "assign_l1":
+        # L1 ticket needs description
         if not state.description:
             state.missing_fields.append("description")
         elif state.description:
@@ -380,7 +397,7 @@ def create_ticket_from_chat(state: ChatbotState) -> ChatbotState:
         agent_display_name = {
             "suppress_agent": "Snow Agent",
             "rfi_agent": "RFI Agent",
-            "ritm_agent": "L1 Team"
+            "l1_agent": "L1 Team"
         }.get(state.target_agent, state.target_agent)
         
         ticket_id = create_ticket(
@@ -395,10 +412,14 @@ def create_ticket_from_chat(state: ChatbotState) -> ChatbotState:
         state.ticket_id = ticket_id
         state.ticket_created = True
         
-        # Create success message
+        # Create success message with status indication
         message = f"✅ Ticket {ticket_id} has been created successfully!\n\n"
         message += f"Type: {state.intent}\n"
         message += f"Assigned to: {agent_display_name}\n"
+        
+        # L1 tickets remain OPEN for manual processing
+        if state.target_agent == "l1_agent":
+            message += f"Status: OPEN (awaiting L1 Team action)\n"
         
         if state.alert_id:
             message += f"Alert ID: {state.alert_id}\n"
@@ -429,9 +450,9 @@ def generate_greeting(state: ChatbotState) -> ChatbotState:
     if len(state.messages) == 0:
         greeting = (
             "👋 Hello! I'm the Snow AI Assistant. I can help you with:\n\n"
-            "Alert Suppression – Silence or mute alerts for a chosen time window\n"
-            "Information Requests (RFI) – Ask the agent to look up details or gather information\n"
-            "General Support – Create tickets for any other type of issue\n\n"
+            "🔕 Alert Suppression – Silence or mute alerts for a chosen time window\n"
+            "🔍 Information Requests (RFI) – Search for information, ask 'how to' questions, or research topics\n"
+            "🎫 L1 Support – Report issues, request access, or get help with technical problems\n\n"
             "What can I help you with today?"
         )
         state.messages.append(ChatMessage(role="assistant", content=greeting))

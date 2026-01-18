@@ -14,7 +14,7 @@ class ChatbotState(BaseModel):
     
     # Extracted ticket information
     description: Optional[str] = None
-    intent: Optional[str] = None  # "silence_alert" or "rfi" or "general"
+    intent: Optional[str] = None  # "silence_alert" or "rfi" or "assign_l1"
     alert_id: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
@@ -29,4 +29,4 @@ class ChatbotState(BaseModel):
     needs_user_input: bool = True
     
     # Agent assignment
-    target_agent: Optional[str] = None  # "suppress_agent", "ritm_agent", "rfi_agent"
+    target_agent: Optional[str] = None  # "suppress_agent", "l1_agent", "rfi_agent"

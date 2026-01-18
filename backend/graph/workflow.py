@@ -1,13 +1,15 @@
 from langgraph.graph import StateGraph, END
 from .state import SNOWState
-from .nodes import classify_intent, handle_grafana, assign_l1, rfi_agent
+from .nodes import classify_intent, grafana_agent, l1_agent, rfi_agent
+from .rag_node import rag_agent
 
 def build_graph():
     graph = StateGraph(SNOWState)
 
     graph.add_node("classify", classify_intent)
-    graph.add_node("grafana", handle_grafana)
-    graph.add_node("assign_l1", assign_l1)
+    graph.add_node("grafana", grafana_agent)
+    graph.add_node("assign_l1", l1_agent)
+    graph.add_node("rag", rag_agent)
     graph.add_node("rfi", rfi_agent)
 
     graph.set_entry_point("classify")
@@ -18,6 +20,16 @@ def build_graph():
         {
             "silence_alert": "grafana",
             "assign_l1": "assign_l1",
+            "rfi": "rag"  # RFI requests go to RAG first
+        }
+    )
+
+    # RAG agent decision: if found answer, end; otherwise go to RFI
+    graph.add_conditional_edges(
+        "rag",
+        lambda s: "end" if s.rag_found else "rfi",
+        {
+            "end": END,
             "rfi": "rfi"
         }
     )

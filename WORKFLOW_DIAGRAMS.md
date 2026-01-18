@@ -3,39 +3,41 @@
 ## 1. Main Ticket Processing Workflow
 
 ```mermaid
-graph TB
-    START([START]) --> classify["Classify Intent
-    classify_intent"]
+graph TD
+    Start[Start] --> Classify[Classify Intent]
 
-    classify -->|intent = silence_alert| grafana["Handle Grafana
-    handle_grafana"]
-    classify -->|intent = rfi| rfi["RFI Agent
-    rfi_agent"]
-    classify -->|intent = assign_l1| assign["Assign to L1
-    assign_l1"]
+    Classify -->|silence_alert| Grafana[Grafana Agent]
+    Classify -->|rfi| RAG[RAG Agent]
+    Classify -->|assign_l1| L1[L1 Agent]
 
-    grafana --> END1([END])
-    rfi --> END2([END])
-    assign --> END3([END])
+    RAG -->|Found| End1[End]
+    RAG -->|Not Found| RFI[RFI Agent]
 
-    style START fill:#4ade80,stroke:#22c55e,stroke-width:3px,color:#000
-    style classify fill:#60a5fa,stroke:#3b82f6,stroke-width:2px
-    style grafana fill:#f59e0b,stroke:#d97706,stroke-width:2px
-    style rfi fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px
-    style assign fill:#ec4899,stroke:#db2777,stroke-width:2px
-    style END1 fill:#ef4444,stroke:#dc2626,stroke-width:3px,color:#fff
-    style END2 fill:#ef4444,stroke:#dc2626,stroke-width:3px,color:#fff
-    style END3 fill:#ef4444,stroke:#dc2626,stroke-width:3px,color:#fff
+    Grafana --> End2[End]
+    RFI --> End3[End]
+    L1 --> End4[End - Ticket Open]
+
+    style Start fill:#4ade80,stroke:#22c55e,stroke-width:2px
+    style Classify fill:#60a5fa,stroke:#3b82f6,stroke-width:2px
+    style Grafana fill:#f59e0b,stroke:#d97706,stroke-width:2px
+    style RAG fill:#a855f7,stroke:#9333ea,stroke-width:2px
+    style RFI fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px
+    style L1 fill:#ec4899,stroke:#db2777,stroke-width:2px
+    style End1 fill:#10b981,stroke:#059669,stroke-width:2px
+    style End2 fill:#10b981,stroke:#059669,stroke-width:2px
+    style End3 fill:#10b981,stroke:#059669,stroke-width:2px
+    style End4 fill:#f59e0b,stroke:#d97706,stroke-width:2px
 ```
 
 ### Node Descriptions
 
-| Node                | Function           | Purpose                                          | Output                                         |
-| ------------------- | ------------------ | ------------------------------------------------ | ---------------------------------------------- |
-| **classify_intent** | LLM Classification | Analyzes description to determine intent type    | Sets `intent` field                            |
-| **handle_grafana**  | Alert Suppression  | Silences Grafana alert for specified time window | Sets `closed=True`, `assigned_to="Snow Agent"` |
-| **rfi_agent**       | Web Research       | Searches web via Tavily, summarizes with LLM     | Sets `work_comments`, `closed=True`            |
-| **assign_l1**       | L1 Assignment      | Routes to L1 support team                        | Sets `assigned_to="L1 Team"`                   |
+| Node                | Function            | Purpose                                          | Output                                         |
+| ------------------- | ------------------- | ------------------------------------------------ | ---------------------------------------------- |
+| **classify_intent** | LLM Classification  | Analyzes description to determine intent type    | Sets `intent` field                            |
+| **grafana_agent**   | Alert Suppression   | Silences Grafana alert for specified time window | Sets `closed=True`, `assigned_to="Snow Agent"` |
+| **rag_agent**       | Company Docs Search | Searches vector DB for company documentation     | Sets `rag_found`, `work_comments` if found     |
+| **rfi_agent**       | Web Research        | Searches web via Tavily, summarizes with LLM     | Sets `work_comments`, `closed=True`            |
+| **l1_agent**        | L1 Assignment       | Routes to L1 support team (ticket stays OPEN)    | Sets `assigned_to="L1 Team"`                   |
 
 ### Intent Classification Logic
 
@@ -56,40 +58,35 @@ graph TB
 ## 2. Chatbot Conversation Workflow
 
 ```mermaid
-graph TB
-    START([START]) --> greeting{Action?}
+graph TD
+    Start[Start] --> Action{Action Type}
 
-    greeting -->|action = start| greet["Generate Greeting
-    generate_greeting"]
-    greeting -->|action = send| extract["Extract Info
-    extract_info"]
-    greeting -->|user sent response| parse["Parse Response
-    parse_user_response"]
+    Action -->|New Conversation| Greeting[Generate Greeting]
+    Action -->|User Message| Extract[Extract Info]
+    Action -->|Follow-up Response| Parse[Parse Response]
 
-    greet --> END1([END])
-    extract --> check["Check Required Fields
-    check_required_fields"]
-    parse --> check
+    Greeting --> End1[End]
 
-    check -->|missing_fields exist| ask["Ask for Missing
-    ask_for_missing_fields"]
-    check -->|all fields present| create["Create Ticket
-    create_ticket_from_chat"]
+    Extract --> Check[Check Required Fields]
+    Parse --> Check
 
-    ask --> END2([END - Wait for User])
-    create --> END3([END])
+    Check -->|Missing Fields| Ask[Ask for Missing Fields]
+    Check -->|All Fields Present| Create[Create Ticket]
 
-    style START fill:#4ade80,stroke:#22c55e,stroke-width:3px,color:#000
-    style greeting fill:#3b82f6,stroke:#2563eb,stroke-width:2px
-    style greet fill:#06b6d4,stroke:#0891b2,stroke-width:2px
-    style extract fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px
-    style parse fill:#a855f7,stroke:#9333ea,stroke-width:2px
-    style check fill:#f59e0b,stroke:#d97706,stroke-width:2px
-    style ask fill:#ec4899,stroke:#db2777,stroke-width:2px
-    style create fill:#10b981,stroke:#059669,stroke-width:2px
-    style END1 fill:#ef4444,stroke:#dc2626,stroke-width:3px,color:#fff
-    style END2 fill:#ef4444,stroke:#dc2626,stroke-width:3px,color:#fff
-    style END3 fill:#ef4444,stroke:#dc2626,stroke-width:3px,color:#fff
+    Ask --> End2[End - Wait for User]
+    Create --> End3[End]
+
+    style Start fill:#4ade80,stroke:#22c55e,stroke-width:2px
+    style Action fill:#3b82f6,stroke:#2563eb,stroke-width:2px
+    style Greeting fill:#06b6d4,stroke:#0891b2,stroke-width:2px
+    style Extract fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px
+    style Parse fill:#a855f7,stroke:#9333ea,stroke-width:2px
+    style Check fill:#f59e0b,stroke:#d97706,stroke-width:2px
+    style Ask fill:#ec4899,stroke:#db2777,stroke-width:2px
+    style Create fill:#10b981,stroke:#059669,stroke-width:2px
+    style End1 fill:#10b981,stroke:#059669,stroke-width:2px
+    style End2 fill:#f59e0b,stroke:#d97706,stroke-width:2px
+    style End3 fill:#10b981,stroke:#059669,stroke-width:2px
 ```
 
 ### Chatbot Nodes

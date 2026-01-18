@@ -6,4 +6,13 @@ python-dotenv
 langchain_groq
 IPython
 tavily
-# tavily-python
+python-multipart
+# RAG dependencies
+langchain
+langchain-community
+sentence-transformers
+faiss-cpu
+pypdf
+python-docx
+unstructured
+markdown

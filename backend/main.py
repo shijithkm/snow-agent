@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
 from datetime import datetime
@@ -24,6 +24,7 @@ from graph.chatbot_nodes import (
 )
 from services.servicenow_mock import create_ticket, tickets
 from services.grafana_mock import alerts
+from services.rag_service import rag_service
 from models.ticket import TicketRequest
 
 app = FastAPI(title="Snow AI Agent", version="1.0.0")
@@ -256,4 +257,122 @@ async def chat(payload: ChatRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error("Chat processing failed", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# RAG Document Management Endpoints
+@app.post("/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    uploaded_by: str = Form("admin")
+):
+    """Upload a document for RAG training."""
+    try:
+        # Validate file type
+        allowed_extensions = [".pdf", ".md", ".txt", ".doc", ".docx"]
+        file_ext = "." + file.filename.split(".")[-1].lower() if "." in file.filename else ""
+        
+        if file_ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"
+            )
+        
+        # Read file content
+        content = await file.read()
+        
+        # Save document
+        metadata = rag_service.save_document(content, file.filename, uploaded_by)
+        
+        return {
+            "success": True,
+            "message": "Document uploaded successfully",
+            "document": metadata
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Document upload failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/documents")
+async def list_documents():
+    """Get all uploaded documents."""
+    try:
+        documents = rag_service.get_all_documents()
+        return {
+            "success": True,
+            "documents": documents,
+            "total": len(documents)
+        }
+    except Exception as e:
+        logger.error(f"Failed to list documents: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/documents/{doc_id}")
+async def get_document(doc_id: str):
+    """Get document metadata."""
+    try:
+        doc = rag_service.get_document(doc_id)
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return {"success": True, "document": doc}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get document: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/documents/{doc_id}/train")
+async def train_document(doc_id: str):
+    """Train a document into the vector database."""
+    try:
+        metadata = rag_service.train_document(doc_id)
+        return {
+            "success": True,
+            "message": "Document trained successfully",
+            "document": metadata
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Document training failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/documents/{doc_id}")
+async def delete_document(doc_id: str):
+    """Delete a document."""
+    try:
+        success = rag_service.delete_document(doc_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return {
+            "success": True,
+            "message": "Document deleted successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Document deletion failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/documents/search")
+async def search_documents(query: str = Form(...), k: int = Form(3)):
+    """Search documents in vector database."""
+    try:
+        results = rag_service.search(query, k)
+        return {
+            "success": True,
+            "query": query,
+            "results": results,
+            "count": len(results)
+        }
+    except Exception as e:
+        logger.error(f"Document search failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
