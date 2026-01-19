@@ -9,3 +9,6 @@ class TicketRequest(BaseModel):
     start_time: datetime | None = None
     end_time: datetime | None = None
     work_comments: str | None = None
+    service_type: str | None = None  # For RITM tickets
+    application: str | None = None  # For suppress alerts service
+    source: str | None = "form"  # Track creation source: "chatbot" or "form"

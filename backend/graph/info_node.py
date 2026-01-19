@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Any
 from langchain_groq import ChatGroq
 from services.confluence_mcp import confluence_client
-from graph.state import SNOWState
+from graph.state import OpsState
 
 logger = logging.getLogger("backend.graph.info_agent")
 
@@ -17,7 +17,7 @@ except Exception as e:
     info_llm = None
 
 
-def info_agent(state: SNOWState) -> Dict[str, Any]:
+def info_agent(state: OpsState) -> Dict[str, Any]:
     """
     Info Agent: Search Confluence MCP server for company information.
     

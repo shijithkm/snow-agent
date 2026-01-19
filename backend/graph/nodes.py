@@ -36,13 +36,17 @@ def classify_intent(state):
             state.intent = "rfi"
             logger.info("Ticket %s classified as RFI based on ticket_type", getattr(state, "ticket_id", "?"))
             return state
+        elif ticket_type_lower in ["ritm", "requested_item", "request"]:
+            state.intent = "ritm"
+            logger.info("Ticket %s classified as RITM based on ticket_type", getattr(state, "ticket_id", "?"))
+            return state
+        elif ticket_type_lower in ["incident", "inc"]:
+            state.intent = "incident"
+            logger.info("Ticket %s classified as INCIDENT based on ticket_type", getattr(state, "ticket_id", "?"))
+            return state
         elif "silence" in ticket_type_lower or ticket_type_lower == "silence_alert":
             state.intent = "silence_alert"
             logger.info("Ticket %s classified as silence_alert based on ticket_type", getattr(state, "ticket_id", "?"))
-            return state
-        elif ticket_type_lower == "assign_l1":
-            state.intent = "assign_l1"
-            logger.info("Ticket %s classified as assign_l1 based on ticket_type", getattr(state, "ticket_id", "?"))
             return state
     
     system = {
@@ -50,13 +54,12 @@ def classify_intent(state):
     "content": (
         "You are an intent-classification agent for a ServiceNow automation workflow. "
         "Your task is to output exactly one label based on the ticket description. "
-        "Output 'silence_alert' if the user is requesting alert suppression in any form "
-        "(silence, mute, suppress, disable, stop, acknowledge, or similar). "
         "Output 'rfi' if the user is asking for information, research, "
         "web search, documentation, explanation, how-to, or needs to find answers to questions. "
-        "Output 'assign_l1' for all other requests (general support, incidents, or issues). "
+        "Output 'ritm' if the user is requesting access, software, hardware, or services. "
+        "Output 'incident' for all other requests (technical issues, errors, system problems). "
         "Rules: "
-        "1. Output ONLY one of these three labels: silence_alert, rfi, or assign_l1. "
+        "1. Output ONLY one of these three labels: rfi, ritm, or incident. "
         "2. Do NOT include explanations, punctuation, or additional text. "
         "3. Do NOT modify or rephrase the labels."
     )
@@ -69,32 +72,32 @@ def classify_intent(state):
 
         logger.info("ChatGroq classification for ticket %s: intent=%s", getattr(state, "ticket_id", "?"), intent)   
 
-        if "silence" in intent or "silence_alert" in intent:
-            state.intent = "silence_alert"
-        elif "rfi" in intent:
+        if "rfi" in intent:
             state.intent = "rfi"
-        elif "assign_l1" in intent:
-            state.intent = "assign_l1"
+        elif "ritm" in intent:
+            state.intent = "ritm"
+        elif "incident" in intent:
+            state.intent = "incident"
         else:
             # Fallback to heuristic if LLM response is unclear
             logger.warning("Unclear LLM response, using heuristic for ticket %s", getattr(state, "ticket_id", "?"))
             desc = state.description.lower()
-            if any(keyword in desc for keyword in ["silence", "suppress", "mute", "disable", "stop alert", "acknowledge"]):
-                state.intent = "silence_alert"
-            elif any(keyword in desc for keyword in ["know more", "how to", "what is", "explain", "search", "find", "information", "help me understand", "tell me about"]):
+            if any(keyword in desc for keyword in ["know more", "how to", "what is", "explain", "search", "find", "information", "help me understand", "tell me about"]):
                 state.intent = "rfi"
+            elif any(keyword in desc for keyword in ["need access", "request", "install", "hardware", "software"]):
+                state.intent = "ritm"
             else:
-                state.intent = "assign_l1"
+                state.intent = "incident"
 
     except Exception as e:
         logger.error("ChatGroq classification failed; using heuristic", exc_info=True)
         desc = state.description.lower()
-        if any(keyword in desc for keyword in ["silence", "suppress", "mute", "disable", "stop alert", "acknowledge"]):
-            state.intent = "silence_alert"
-        elif any(keyword in desc for keyword in ["know more", "how to", "what is", "explain", "search", "find", "information", "help me understand", "tell me about"]):
+        if any(keyword in desc for keyword in ["know more", "how to", "what is", "explain", "search", "find", "information", "help me understand", "tell me about"]):
             state.intent = "rfi"
+        elif any(keyword in desc for keyword in ["need access", "request", "install", "hardware", "software"]):
+            state.intent = "ritm"
         else:
-            state.intent = "assign_l1"
+            state.intent = "incident"
 
     return state
 
@@ -102,7 +105,7 @@ def _heuristic_assign(state):
     # Minimal heuristic used as a safe fallback
     desc = (state.description or "").lower()
     if (state.ticket_type and ("suppress" in state.ticket_type.lower() or "silence" in state.ticket_type.lower())) or "silence" in desc or getattr(state, "alert_id", None):
-        state.assigned_to = "Snow Agent"
+        state.assigned_to = "Ops Agent"
         state.intent = "silence_alert"
     else:
         state.assigned_to = "L1 Team"
@@ -116,10 +119,10 @@ def grafana_agent(state):
     end = getattr(state, "end_time", None)
     logger.info("Handling grafana for ticket %s: alert=%s start=%s end=%s", getattr(state, "ticket_id", "?"), state.alert_id, start, end)
     result = silence_alert(state.alert_id, start, end)
-    # Snow Agent handles suppression: mark assigned and close immediately
-    state.assigned_to = "Snow Agent"
+    # Ops Agent handles suppression: mark assigned and close immediately
+    state.assigned_to = "Ops Agent"
     state.closed = True
-    state.result = f"Grafana alert {state.alert_id} silenced by Snow Agent: {result}"
+    state.result = f"Grafana alert {state.alert_id} silenced by Ops Agent: {result}"
     logger.info("Grafana handled for ticket %s: result=%s", getattr(state, "ticket_id", "?"), result)
     return state
 

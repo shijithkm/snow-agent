@@ -1,6 +1,6 @@
-# Snow AI Agent - Frontend
+# Ops AI Agent - Frontend
 
-Next.js 16.1.2 frontend for the Snow AI Agent ticket automation system.
+Next.js 16.1.2 frontend for the Ops AI Agent ticket automation system.
 
 ## Quick Start
 

@@ -21,10 +21,15 @@ export function TicketList({ tickets }: { tickets: any[] }) {
                                 {t.ticket_type && (
                                     <div className="text-xs text-slate-400">Type: {t.ticket_type}</div>
                                 )}
+                                {t.source && (
+                                    <div className="text-xs text-slate-400">
+                                        Source: {t.source === "chatbot" ? "💬 Chatbot" : "📝 Form"}
+                                    </div>
+                                )}
                                 {t.assigned_to && (
                                     <div className="text-xs text-slate-300 flex items-center gap-2 flex-wrap">
                                         <span>Assigned to: {t.assigned_to}</span>
-                                        {t.assigned_to === "Snow Agent" ? (
+                                        {t.assigned_to === "Ops Agent" ? (
                                             <span className="ml-1 text-amber-300 animate-pulse" aria-hidden>
                                                 🤖
                                             </span>
@@ -39,7 +44,7 @@ export function TicketList({ tickets }: { tickets: any[] }) {
                                         ) : null}
                                     </div>
                                 )}
-                                {(t.ticket_type?.toLowerCase() === "silence_alert" || t.assigned_to === "Snow Agent") && (t.start_time || t.end_time) && (
+                                {(t.ticket_type?.toLowerCase() === "silence_alert" || t.assigned_to === "Ops Agent") && (t.start_time || t.end_time) && (
                                     <div className="text-xs text-slate-400 break-words">
                                         {t.start_time && <>From: {new Date(t.start_time).toLocaleString()}</>}
                                         {t.start_time && t.end_time && <> — </>}

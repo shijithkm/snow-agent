@@ -1,4 +1,4 @@
-# LangGraph Workflow Diagrams - Snow AI Agent
+# LangGraph Workflow Diagrams - Ops AI Agent
 
 ## 1. Main Ticket Processing Workflow
 
@@ -6,52 +6,59 @@
 graph TD
     Start[Start] --> Classify[Classify Intent]
 
-    Classify -->|silence_alert| Grafana[Grafana Agent]
-    Classify -->|rfi| RAG[RAG Agent]
-    Classify -->|assign_l1| L1[L1 Agent]
+    Classify -->|ritm + suppress_alerts| Grafana[Grafana Agent]
+    Classify -->|rfi| Info[Info Agent]
+    Classify -->|ritm| Info
+    Classify -->|incident| L1[L1 Agent]
 
-    RAG -->|Found| End1[End]
-    RAG -->|Not Found| RFI[RFI Agent]
+    Info -->|Found| End1[End]
+    Info -->|Not Found| RAG[RAG Agent]
 
-    Grafana --> End2[End]
-    RFI --> End3[End]
+    RAG -->|Found| End2[End]
+    RAG -->|Not Found| L1Fallback[L1 Fallback]
+
+    Grafana --> End3[End]
     L1 --> End4[End - Ticket Open]
+    L1Fallback --> End5[End - Ticket Open]
 
     style Start fill:#4ade80,stroke:#22c55e,stroke-width:2px
     style Classify fill:#60a5fa,stroke:#3b82f6,stroke-width:2px
-    style Grafana fill:#f59e0b,stroke:#d97706,stroke-width:2px
+    style Grafana fill:#3b82f6,stroke:#2563eb,stroke-width:2px
+    style Info fill:#06b6d4,stroke:#0891b2,stroke-width:2px
     style RAG fill:#a855f7,stroke:#9333ea,stroke-width:2px
-    style RFI fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px
     style L1 fill:#ec4899,stroke:#db2777,stroke-width:2px
+    style L1Fallback fill:#f97316,stroke:#ea580c,stroke-width:2px
     style End1 fill:#10b981,stroke:#059669,stroke-width:2px
     style End2 fill:#10b981,stroke:#059669,stroke-width:2px
     style End3 fill:#10b981,stroke:#059669,stroke-width:2px
     style End4 fill:#f59e0b,stroke:#d97706,stroke-width:2px
+    style End5 fill:#f59e0b,stroke:#d97706,stroke-width:2px
 ```
 
 ### Node Descriptions
 
-| Node                | Function            | Purpose                                          | Output                                         |
-| ------------------- | ------------------- | ------------------------------------------------ | ---------------------------------------------- |
-| **classify_intent** | LLM Classification  | Analyzes description to determine intent type    | Sets `intent` field                            |
-| **grafana_agent**   | Alert Suppression   | Silences Grafana alert for specified time window | Sets `closed=True`, `assigned_to="Snow Agent"` |
-| **rag_agent**       | Company Docs Search | Searches vector DB for company documentation     | Sets `rag_found`, `work_comments` if found     |
-| **rfi_agent**       | Web Research        | Searches web via Tavily, summarizes with LLM     | Sets `work_comments`, `closed=True`            |
-| **l1_agent**        | L1 Assignment       | Routes to L1 support team (ticket stays OPEN)    | Sets `assigned_to="L1 Team"`                   |
+| Node                | Function             | Purpose                                                 | Output                                          |
+| ------------------- | -------------------- | ------------------------------------------------------- | ----------------------------------------------- |
+| **classify_intent** | LLM Classification   | Analyzes ticket_type or description to determine intent | Sets `intent` field (rfi/ritm/incident)         |
+| **grafana_agent**   | Alert Suppression    | Silences Grafana alert for RITM suppress_alerts service | Sets `closed=True`, `assigned_to="Ops Agent"`   |
+| **info_agent**      | Confluence Search    | Searches Confluence via MCP server                      | Sets `info_found`, `work_comments` if found     |
+| **rag_agent**       | Internal Docs Search | Searches vector DB for company documentation            | Sets `rag_found`, `work_comments` if found      |
+| **rfi_l1_fallback** | L1 Escalation        | Escalates RFI/RITM when no info found                   | Sets `assigned_to="L1 Team"`, ticket stays OPEN |
+| **l1_agent**        | Direct L1 Assignment | Routes INCIDENT tickets to L1 team                      | Sets `assigned_to="L1 Team"`                    |
 
 ### Intent Classification Logic
 
 **Prompt to LLM:**
 
-> Output 'silence_alert' if user requests alert suppression in any form (silence, mute, suppress, disable, stop, acknowledge)
-> Output 'rfi' if user asks for information/research
-> Output 'assign_l1' for all other requests
+> Output 'rfi' if user is asking for information, research, documentation, explanation, how-to
+> Output 'ritm' if user is requesting access, software, hardware, or services
+> Output 'incident' for all other requests (technical issues, errors, system problems)
 
 **Heuristic Fallback Keywords:**
 
-- **silence_alert**: silence, suppress, mute, disable, stop alert, acknowledge
-- **rfi**: know more, how to, what is, explain, search, find, information
-- **assign_l1**: Default for unmatched patterns
+- **rfi**: know more, how to, what is, explain, search, find, information, tell me about
+- **ritm**: need access, request, install, create account, provision, setup
+- **incident**: error, not working, broken, down, issue, problem
 
 ---
 
@@ -194,21 +201,27 @@ end
 
 ## 4. State Models
 
-### SNOWState (Main Workflow)
+### OpsState (Main Workflow)
 
 ```python
-class SNOWState(BaseModel):
+class OpsState(BaseModel):
     ticket_id: Optional[str] = None           # TKT-1, TKT-2, etc.
     description: Optional[str] = None         # User's description
-    intent: Optional[str] = None              # silence_alert | rfi | assign_l1
-    alert_id: Optional[str] = None            # Grafana alert ID (A-1, A-2, etc.)
+    intent: Optional[str] = None              # rfi | ritm | incident
+    alert_id: Optional[str] = None            # Grafana alert ID (1, 2, 3, 4)
     ticket_type: Optional[str] = None         # Explicit type override
-    assigned_to: Optional[str] = None         # "Snow Agent" | "RFI Agent" | "L1 Team"
+    assigned_to: Optional[str] = None         # "Ops Agent" | "L1 Team" | "RAG Agent"
     closed: Optional[bool] = None             # Ticket closure status
     start_time: Optional[datetime] = None     # Suppression start time
     end_time: Optional[datetime] = None       # Suppression end time
     result: Optional[str] = None              # Result message
     work_comments: Optional[str] = None       # Research results or notes
+    service_type: Optional[str] = None        # For RITM tickets (suppress_alerts, etc.)
+    application: Optional[str] = None         # For suppress_alerts service
+    rag_found: Optional[bool] = None          # Whether RAG found results
+    rag_results: Optional[Any] = None         # RAG search results
+    info_found: Optional[bool] = None         # Whether Info Agent found results
+    info_results: Optional[Any] = None        # Info Agent search results
 ````
 
 ### ChatbotState (Conversation Workflow)
@@ -217,13 +230,14 @@ class SNOWState(BaseModel):
 class ChatbotState(BaseModel):
     session_id: str                           # Unique session identifier
     messages: List[Dict] = []                 # Conversation history
-    intent: Optional[str] = None              # Detected intent
+    intent: Optional[str] = None              # Detected intent (rfi/ritm/incident)
     description: Optional[str] = None         # Extracted description
     alert_id: Optional[str] = None            # Extracted alert ID
     missing_fields: List[str] = []            # Fields that need user input
     ticket_created: bool = False              # Whether ticket was created
     ticket_id: Optional[str] = None           # Created ticket ID
     details_requested: bool = False           # Prevent infinite loops
+    awaiting_confirmation: bool = False       # Waiting for user to confirm RFI/RITM answer
 ```
 
 ---
@@ -233,24 +247,30 @@ class ChatbotState(BaseModel):
 ### Main Workflow: classify_intent
 
 ```
-INPUT: state.description
+INPUT: state.description, state.ticket_type
 
 DECISION LOGIC:
-1. Check explicit state.ticket_type
+1. Check explicit state.ticket_type (from form submission)
    - If "rfi" → intent = "rfi"
-   - If contains "silence" → intent = "silence_alert"
+   - If "ritm" → intent = "ritm"
+   - If "incident" → intent = "incident"
 
-2. Use LLM classification
+2. Use LLM classification (from chatbot)
    - Send description to Groq LLM
    - Parse response for intent
 
 3. Fallback to heuristics
    - Check for keywords:
-     * "silence", "suppress", "mute", "disable" → "silence_alert"
-     * "know more", "how to", "what is" → "rfi"
-     * Default → "assign_l1"
+     * "how to", "what is", "explain" → "rfi"
+     * "need access", "request", "install" → "ritm"
+     * Default → "incident"
 
-OUTPUT: state.intent = "silence_alert" | "rfi" | "assign_l1"
+OUTPUT: state.intent = "rfi" | "ritm" | "incident"
+
+ROUTING LOGIC:
+- If intent == "ritm" AND service_type == "suppress_alerts" → grafana_agent
+- If intent == "ritm" OR intent == "rfi" → info_agent
+- If intent == "incident" → l1_agent
 ```
 
 ### Chatbot Workflow: check_required_fields

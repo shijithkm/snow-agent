@@ -117,7 +117,7 @@ export default function ChatPage() {
         <main className="flex flex-col h-[calc(100vh-10rem)] sm:h-[calc(100vh-8rem)]">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                 <div>
-                    <h1 className="text-xl sm:text-2xl font-bold">Snow AI Chatbot</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold">Ops AI Chatbot</h1>
                     <p className="text-sm text-slate-400">Create tickets through natural conversation</p>
                 </div>
                 <button
@@ -162,7 +162,7 @@ export default function ChatPage() {
                             {msg.role === "assistant" && (
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="text-lg">🤖</span>
-                                    <span className="text-xs font-semibold text-slate-400">Snow Agent</span>
+                                    <span className="text-xs font-semibold text-slate-400">Ops Agent</span>
                                 </div>
                             )}
                             <div className="whitespace-pre-wrap text-sm">{msg.content}</div>

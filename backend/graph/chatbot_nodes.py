@@ -114,7 +114,7 @@ def extract_info(state: ChatbotState) -> ChatbotState:
         "content": (
             "You are an intent classifier for a ServiceNow ticketing system. "
             "Classify the user's message into EXACTLY one of these intents.\n\n"
-            "Output ONLY ONE WORD: 'silence_alert', 'rfi', or 'assign_l1'\n\n"
+            "Output ONLY ONE WORD: 'rfi', 'ritm', or 'incident'\n\n"
             "CRITICAL CLASSIFICATION RULES:\n\n"
             "Choose 'rfi' when user is:\n"
             "- Asking WHAT IS something (policies, procedures, guidelines, definitions)\n"
@@ -122,16 +122,19 @@ def extract_info(state: ChatbotState) -> ChatbotState:
             "- Requesting INFORMATION or RESEARCH (looking up details, finding documentation)\n"
             "- Asking EXPLAIN or TELL ME ABOUT a topic\n"
             "- Questions starting with: what, how, why, where, when, explain, tell me\n"
-            "Examples: 'what is the password policy', 'how to reset password', 'tell me about leave policy'\n\n"
-            "Choose 'silence_alert' when user wants to:\n"
-            "- Silence, suppress, mute, or disable an alert\n"
-            "- Stop or acknowledge an alert\n\n"
-            "Choose 'assign_l1' when user:\n"
+            "Examples: 'what is the password policy', 'how to onboard employee', 'tell me about leave policy'\n\n"
+            "Choose 'ritm' when user wants to:\n"
+            "- REQUEST or SUPPRESS or SILENCE alerts (alert management)\n"
+            "- REQUEST access to systems, applications, or resources\n"
+            "- REQUEST software installation or hardware\n"
+            "- REQUEST new accounts, permissions, or privileges\n"
+            "- REQUEST services or items to be provisioned\n"
+            "Examples: 'suppress alert', 'silence monitoring', 'need access to Jira', 'request laptop', 'create new user account'\n\n"
+            "Choose 'incident' when user:\n"
             "- Reports a BROKEN or NOT WORKING system/service\n"
-            "- Needs ACCESS or PERMISSION (unlock account, grant access)\n"
             "- Has an ERROR or PROBLEM that needs fixing\n"
-            "- Requests a TASK to be performed (create user, block IP)\n"
-            "Examples: 'my account is locked', 'I can't access the system', 'reset my password'\n\n"
+            "- Reports service disruptions or outages\n"
+            "Examples: 'my laptop is not working', 'application is down', 'getting error message'\n\n"
             "User message: {message}"
         )
     }
@@ -150,22 +153,25 @@ def extract_info(state: ChatbotState) -> ChatbotState:
         elif "rfi" in intent:
             state.intent = "rfi"
             state.target_agent = "rfi_agent"
-        elif "assign_l1" in intent:
-            state.intent = "assign_l1"
+        elif "ritm" in intent:
+            state.intent = "ritm"
+            state.target_agent = "l1_agent"
+        elif "incident" in intent:
+            state.intent = "incident"
             state.target_agent = "l1_agent"
         else:
-            # Default to L1 agent for unclear cases
-            state.intent = "assign_l1"
+            # Default to incident for unclear cases
+            state.intent = "incident"
             state.target_agent = "l1_agent"
     except Exception as e:
         logger.error("Failed to extract intent", exc_info=True)
-        state.intent = "assign_l1"
+        state.intent = "incident"
         state.target_agent = "l1_agent"
     
     # Only store description if the message is more than just the intent
     # Don't store generic phrases like "Information Request", "Alert Suppression", etc.
     last_msg = user_messages[-1].lower().strip()
-    generic_phrases = ["information request", "alert suppression", "l1 support", "rfi", "silence alert", "suppress alert", "assign l1"]
+    generic_phrases = ["information request", "rfi", "ritm", "incident", "requested item", "request for information"]
     
     is_generic = any(phrase in last_msg for phrase in generic_phrases)
     logger.info("Checking description - last_msg: '%s', is_generic: %s, current description: '%s'", last_msg, is_generic, state.description)
@@ -184,20 +190,32 @@ def check_required_fields(state: ChatbotState) -> ChatbotState:
     """Check if all required fields are present for the identified intent."""
     state.missing_fields = []
     
-    if state.intent == "silence_alert":
-        # Need alert_id, start_time, end_time
-        if not state.alert_id:
-            state.missing_fields.append("alert_id")
-        if not state.start_time:
-            state.missing_fields.append("start_time")
-        if not state.end_time:
-            state.missing_fields.append("end_time")
-    elif state.intent == "rfi":
+    if state.intent == "rfi":
         # Only need description
         if not state.description:
             state.missing_fields.append("description")
-    elif state.intent == "assign_l1":
-        # L1 ticket needs description
+    elif state.intent == "ritm":
+        # RITM ticket needs description
+        if not state.description:
+            state.missing_fields.append("description")
+        else:
+            # Check if this is a suppress alerts request
+            desc_lower = state.description.lower() if state.description else ""
+            is_suppress_request = any(keyword in desc_lower for keyword in ["suppress", "silence", "mute", "stop alert", "disable alert"])
+            
+            if is_suppress_request:
+                # This is a suppress alerts RITM - need alert_id, application, start_time, end_time
+                if not state.alert_id:
+                    state.missing_fields.append("alert_id")
+                if not state.application:
+                    state.missing_fields.append("application")
+                if not state.start_time:
+                    state.missing_fields.append("start_time")
+                if not state.end_time:
+                    state.missing_fields.append("end_time")
+                logger.info("Suppress alerts RITM detected, missing fields: %s", state.missing_fields)
+    elif state.intent == "incident":
+        # Incident ticket needs description
         if not state.description:
             state.missing_fields.append("description")
         elif state.description:
@@ -246,6 +264,23 @@ def ask_for_missing_fields(state: ChatbotState) -> ChatbotState:
         except Exception as e:
             logger.warning("Failed to fetch alerts: %s", e)
     
+    # For suppress alerts RITM, ask in specific order: alert_id, application, then time
+    if state.intent == "ritm" and "alert_id" in state.missing_fields:
+        # Ask for alert_id first
+        prompt = f"Which alert would you like to silence?{available_alerts_text}"
+        state.messages.append(ChatMessage(role="assistant", content=prompt))
+        state.needs_user_input = True
+        logger.info("Asking for alert_id first for suppress alerts RITM")
+        return state
+    
+    if state.intent == "ritm" and "application" in state.missing_fields and "alert_id" not in state.missing_fields:
+        # Ask for application second
+        prompt = "Which application is this alert for? (e.g., 'Website 1' or 'Website 2')"
+        state.messages.append(ChatMessage(role="assistant", content=prompt))
+        state.needs_user_input = True
+        logger.info("Asking for application for suppress alerts RITM")
+        return state
+    
     # Special case: if both start_time and end_time are missing, ask for them together
     if "start_time" in state.missing_fields and "end_time" in state.missing_fields:
         prompt = "When should the silence period be? (e.g., 'tomorrow 6 to 7 PM EST' or '2026-01-20 14:00 to 2026-01-20 15:00')"
@@ -256,6 +291,7 @@ def ask_for_missing_fields(state: ChatbotState) -> ChatbotState:
     
     field_prompts = {
         "alert_id": f"Which alert would you like to silence?{available_alerts_text}",
+        "application": "Which application is this alert for? (e.g., 'Website 1' or 'Website 2')",
         "start_time": "When should the silence period start? (e.g., 'tomorrow 6 PM EST' or '2026-01-20 14:00')",
         "end_time": "When should the silence period end? (e.g., 'tomorrow 7 PM EST' or '2026-01-20 15:00')",
         "description": {
@@ -356,10 +392,14 @@ def parse_user_response(state: ChatbotState) -> ChatbotState:
     if "alert_id" in state.missing_fields:
         # Look for alert ID patterns - be more flexible
         import re
-        alert_match = re.search(r'(a-\d+|alert[-_\s]?\d+|alert[-_\s]?[a-z0-9]+)', last_message, re.IGNORECASE)
+        alert_match = re.search(r'(a-\d+|alert[-_\s]?\d+|alert[-_\s]?[a-z0-9]+|\d+)', last_message, re.IGNORECASE)
         if alert_match:
-            extracted_id = alert_match.group(1).upper()
-            state.alert_id = extracted_id
+            extracted_id = alert_match.group(1)
+            # Normalize to just the number
+            if extracted_id.isdigit():
+                state.alert_id = extracted_id
+            else:
+                state.alert_id = extracted_id.upper()
             state.missing_fields.remove("alert_id")
             logger.info("Extracted alert_id: %s", state.alert_id)
         # If user just provided a simple value, use it as is
@@ -370,6 +410,28 @@ def parse_user_response(state: ChatbotState) -> ChatbotState:
                 state.alert_id = clean_input
                 state.missing_fields.remove("alert_id")
                 logger.info("Extracted alert_id from simple input: %s", state.alert_id)
+    
+    # Extract application
+    if "application" in state.missing_fields:
+        # Look for website patterns
+        if "website" in last_message_lower:
+            if "1" in last_message or "one" in last_message_lower:
+                state.application = "website1"
+                state.missing_fields.remove("application")
+                logger.info("Extracted application: website1")
+            elif "2" in last_message or "two" in last_message_lower:
+                state.application = "website2"
+                state.missing_fields.remove("application")
+                logger.info("Extracted application: website2")
+        # Direct match
+        elif last_message.strip().lower() in ["website1", "website 1"]:
+            state.application = "website1"
+            state.missing_fields.remove("application")
+            logger.info("Extracted application: website1")
+        elif last_message.strip().lower() in ["website2", "website 2"]:
+            state.application = "website2"
+            state.missing_fields.remove("application")
+            logger.info("Extracted application: website2")
     
     # Use LLM to extract datetime information
     if "start_time" in state.missing_fields or "end_time" in state.missing_fields:
@@ -395,10 +457,17 @@ def create_ticket_from_chat(state: ChatbotState) -> ChatbotState:
     try:
         # Map target_agent to display names
         agent_display_name = {
-            "suppress_agent": "Snow Agent",
+            "suppress_agent": "Ops Agent",
             "rfi_agent": "RFI Agent",
             "l1_agent": "L1 Team"
         }.get(state.target_agent, state.target_agent)
+        
+        # Determine service_type for RITM tickets
+        service_type = None
+        if state.intent == "ritm":
+            desc_lower = state.description.lower() if state.description else ""
+            if any(keyword in desc_lower for keyword in ["suppress", "silence", "mute", "stop alert", "disable alert"]):
+                service_type = "suppress_alerts"
         
         ticket_id = create_ticket(
             description=state.description,
@@ -406,7 +475,10 @@ def create_ticket_from_chat(state: ChatbotState) -> ChatbotState:
             ticket_type=state.intent,
             start_time=state.start_time,
             end_time=state.end_time,
-            assigned_to=agent_display_name
+            assigned_to=agent_display_name,
+            service_type=service_type,
+            application=state.application,
+            source="chatbot"
         )
         
         state.ticket_id = ticket_id
@@ -449,11 +521,12 @@ def generate_greeting(state: ChatbotState) -> ChatbotState:
     """Generate initial greeting message."""
     if len(state.messages) == 0:
         greeting = (
-            "👋 Hello! I'm the Snow AI Assistant. I can help you with:\n\n"
-            "🔕 Alert Suppression – Silence or mute alerts for a chosen time window\n"
-            "🔍 Information Requests (RFI) – Search for information, ask 'how to' questions, or research topics\n"
-            "🎫 L1 Support – Report issues, request access, or get help with technical problems\n\n"
-            "What can I help you with today?"
+            "👋 Hello! I'm your **ServiceNow Operations Agent**. How can I help you today?\n\n"
+            "I can assist with:\n"
+            "• 📚 **RFI (Request for Information)** – Search for information, ask 'how to' questions, or research topics\n"
+            "• 🎫 **RITM (Requested Item)** – Request access, software, hardware, or services\n"
+            "• 🚨 **INCIDENT** – Report system issues, errors, or service disruptions\n\n"
+            "Please describe what you need help with."
         )
         state.messages.append(ChatMessage(role="assistant", content=greeting))
         state.needs_user_input = True

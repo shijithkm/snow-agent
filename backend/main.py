@@ -27,7 +27,7 @@ from services.grafana_mock import alerts
 from services.rag_service import rag_service
 from models.ticket import TicketRequest
 
-app = FastAPI(title="Snow AI Agent", version="1.0.0")
+app = FastAPI(title="Ops AI Agent", version="1.0.0")
 
 # Add CORS middleware for frontend
 app.add_middleware(
@@ -92,6 +92,13 @@ def _invoke_agent_workflow(state: ChatbotState) -> None:
     logger.info("Invoking agent workflow for ticket %s (intent=%s)", 
                 state.ticket_id, state.intent)
     try:
+        # Determine service_type for RITM tickets
+        service_type = None
+        if state.intent == "ritm":
+            desc_lower = state.description.lower() if state.description else ""
+            if any(keyword in desc_lower for keyword in ["suppress", "silence", "mute", "stop alert", "disable alert"]):
+                service_type = "suppress_alerts"
+        
         graph_result = graph.invoke({
             "ticket_id": state.ticket_id,
             "description": state.description,
@@ -99,11 +106,47 @@ def _invoke_agent_workflow(state: ChatbotState) -> None:
             "ticket_type": state.intent,
             "start_time": state.start_time,
             "end_time": state.end_time,
+            "service_type": service_type,
+            "application": state.application,
         })
         logger.info("Agent workflow completed for %s: %s", 
                    state.ticket_id, graph_result)
         
         _update_ticket_from_result(state.ticket_id, graph_result)
+        
+        # For RFI and RITM (non-suppress) tickets, show the answer to user and ask for confirmation
+        # For RITM suppress_alerts, the Grafana agent handles it directly
+        if state.intent in ["rfi", "ritm"]:
+            # Skip answer confirmation for RITM suppress_alerts (Grafana handles it)
+            if state.intent == "ritm" and service_type == "suppress_alerts":
+                logger.info("RITM suppress_alerts handled by Grafana agent, skipping confirmation")
+                return
+            
+            work_comments = graph_result.get("work_comments", "")
+            assigned_to = graph_result.get("assigned_to", "")
+            
+            # Skip confirmation if ticket was assigned to L1 Team (no answer found)
+            if assigned_to == "L1 Team":
+                logger.info("Ticket %s assigned to L1 Team, skipping confirmation", state.ticket_id)
+                if state.messages and "Ticket" in state.messages[-1].content and "created successfully" in state.messages[-1].content:
+                    state.messages.pop()
+                # Add L1 assignment message without confirmation prompt
+                state.messages.append(ChatMessage(role="assistant", content=work_comments))
+                state.needs_user_input = False
+                state.awaiting_confirmation = False
+                return
+            
+            if work_comments:
+                # Remove the last ticket creation message
+                if state.messages and "Ticket" in state.messages[-1].content and "created successfully" in state.messages[-1].content:
+                    state.messages.pop()
+                
+                # Add the answer as assistant message with confirmation prompt
+                answer_message = f"{work_comments}\n\n❓ **Did this answer your question?** (Reply 'yes' to close the ticket or 'no' if you need more information)"
+                state.messages.append(ChatMessage(role="assistant", content=answer_message))
+                state.needs_user_input = True
+                state.awaiting_confirmation = True
+                
     except Exception as e:
         logger.error("Agent workflow failed for ticket %s: %s", 
                     state.ticket_id, str(e), exc_info=True)
@@ -183,7 +226,10 @@ async def process_ticket(req: TicketRequest):
             req.alert_id, 
             req.ticket_type, 
             req.start_time, 
-            req.end_time
+            req.end_time,
+            service_type=req.service_type,
+            application=req.application,
+            source=req.source if req.source else "form"
         )
         logger.info("Created ticket %s", ticket_id)
         
@@ -194,6 +240,8 @@ async def process_ticket(req: TicketRequest):
             "ticket_type": req.ticket_type,
             "start_time": req.start_time,
             "end_time": req.end_time,
+            "service_type": req.service_type,
+            "application": req.application,
         })
         logger.info("Graph result for %s: %s", ticket_id, result)
         
@@ -240,6 +288,82 @@ async def chat(payload: ChatRequest):
         # Add user message
         if payload.message:
             state.messages.append(ChatMessage(role="user", content=payload.message))
+        
+        # Check if last assistant message was "Is there anything else I can help you with?"
+        # and user replied no - just acknowledge and don't create new ticket
+        if (len(state.messages) >= 2 and 
+            not state.awaiting_confirmation and 
+            not state.ticket_created and
+            "anything else" in state.messages[-2].content.lower() and
+            payload.message and
+            payload.message.lower().strip() in ["no", "nope", "no thanks", "no thank you", "nothing", "that's all"]):
+            
+            state.messages.append(ChatMessage(
+                role="assistant",
+                content="👍 Alright! Feel free to reach out if you need anything in the future. Have a great day!"
+            ))
+            state.needs_user_input = False
+            chat_sessions[payload.session_id] = state
+            return _create_chat_response(state)
+        
+        # Check if awaiting confirmation for RFI ticket
+        if state.awaiting_confirmation and payload.message:
+            response_lower = payload.message.lower().strip()
+            if any(word in response_lower for word in ["yes", "yeah", "yep", "correct", "thanks", "thank you", "perfect"]):
+                # User is satisfied, close the ticket
+                if state.ticket_id and state.ticket_id in tickets:
+                    tickets[state.ticket_id]["status"] = "closed"
+                    logger.info("Ticket %s closed after user confirmation", state.ticket_id)
+                
+                state.messages.append(ChatMessage(
+                    role="assistant", 
+                    content=f"✅ Great! I'm glad I could help. Ticket {state.ticket_id} has been closed. Is there anything else I can assist you with?"
+                ))
+                state.awaiting_confirmation = False
+                state.ticket_created = False
+                state.ticket_id = None
+                chat_sessions[payload.session_id] = state
+                return _create_chat_response(state)
+                
+            elif any(word in response_lower for word in ["no", "nope", "not really", "need more", "more info"]):
+                # User needs more information, assign to L1
+                if state.ticket_id and state.ticket_id in tickets:
+                    tickets[state.ticket_id]["assigned_to"] = "L1 Team"
+                    tickets[state.ticket_id]["status"] = "open"
+                    tickets[state.ticket_id]["work_comments"] += "\n\n**User requested additional information**\nTicket escalated to L1 Team for further assistance."
+                    logger.info("Ticket %s assigned to L1 Team after user requested more info", state.ticket_id)
+                
+                state.messages.append(ChatMessage(
+                    role="assistant",
+                    content=f"📋 I understand. Ticket {state.ticket_id} has been assigned to our L1 Team for additional research. They will provide more detailed information shortly. Is there anything else I can help you with in the meantime?"
+                ))
+                state.awaiting_confirmation = False
+                state.ticket_created = False
+                state.ticket_id = None
+                chat_sessions[payload.session_id] = state
+                return _create_chat_response(state)
+            else:
+                # User is asking a NEW question instead of confirming - reset state for new request
+                logger.info("User asked new question while awaiting confirmation, resetting state")
+                # Close the previous ticket first
+                if state.ticket_id and state.ticket_id in tickets:
+                    tickets[state.ticket_id]["status"] = "closed"
+                    logger.info("Auto-closing previous ticket %s", state.ticket_id)
+                
+                # Reset state for new question but keep conversation history
+                state.awaiting_confirmation = False
+                state.ticket_created = False
+                state.ticket_id = None
+                state.description = None
+                state.intent = None
+                state.alert_id = None
+                state.application = None
+                state.start_time = None
+                state.end_time = None
+                state.missing_fields = []
+                state.target_agent = None
+                state.details_requested = False
+                # Continue to process the new question below
         
         # Process based on current state
         if state.missing_fields:

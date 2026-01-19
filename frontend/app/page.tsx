@@ -26,9 +26,6 @@ async function processTicket(description: string, alert_id?: string) {
 export default function SnowPage() {
     return (
         <main className="space-y-6 sm:space-y-8">
-            <h1 className="text-2xl sm:text-3xl font-bold">ServiceNow – Ticketing</h1>
-
-            <p className="text-xs sm:text-sm text-slate-300">Tickets have been split into separate pages:</p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
                 <a href="/chat" className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 text-center">
                     💬 Chat with AI
@@ -51,59 +48,59 @@ export default function SnowPage() {
                 <p className="text-xs sm:text-sm text-slate-300">Our intelligent automation platform provides specialized agents to handle different types of requests:</p>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {/* Snow Agent */}
-                    <div className="rounded-lg bg-slate-900 border border-slate-800 p-4 sm:p-6 space-y-3">
+                    {/* Ops Agent */}
+                    <div className="rounded-lg bg-amber-900 border border-amber-700 p-4 sm:p-6 space-y-3">
                         <div className="flex items-center gap-3">
                             <span className="text-2xl sm:text-3xl">🤖</span>
-                            <h3 className="text-base sm:text-lg font-semibold text-amber-300">Snow Agent</h3>
+                            <h3 className="text-base sm:text-lg font-semibold text-amber-300">Ops Agent</h3>
                         </div>
                         <p className="text-xs sm:text-sm text-slate-300">
-                            Automatically handles alert suppression requests. Silences Grafana alerts for specified time windows and manages alert lifecycle.
+                            Orchestrates the entire ticket workflow. Routes requests to appropriate agents, coordinates between Info, RAG, and Grafana agents, and ensures smooth ticket resolution.
                         </p>
                         <div className="text-xs text-slate-400">
-                            <strong>Handles:</strong> Alert silencing, suppression windows
+                            <strong>Handles:</strong> Workflow orchestration, intelligent routing
                         </div>
                     </div>
 
-                    {/* RAG Agent - NEW */}
-                    <div className="rounded-lg bg-purple-900 border border-purple-700 p-4 sm:p-6 space-y-3">
+                    {/* Info Agent */}
+                    <div className="rounded-lg bg-cyan-900 border border-cyan-700 p-4 sm:p-6 space-y-3">
                         <div className="flex items-center gap-3">
-                            <span className="text-2xl sm:text-3xl">🤖</span>
-                            <h3 className="text-base sm:text-lg font-semibold text-purple-300">RAG Agent</h3>
+                            <span className="text-2xl sm:text-3xl">📚</span>
+                            <h3 className="text-base sm:text-lg font-semibold text-cyan-300">Info Agent</h3>
                         </div>
                         <p className="text-xs sm:text-sm text-slate-300">
-                            Searches company documents first. Uses trained knowledge base to answer questions from internal docs, policies, and guides before searching the web.
+                            Searches Confluence documentation via MCP server. Provides instant answers from official company wikis, policies, and technical documentation.
                         </p>
                         <div className="text-xs text-slate-400">
-                            <strong>Handles:</strong> Company docs, policies, internal guides
+                            <strong>Handles:</strong> Confluence search, documentation lookup
                         </div>
                     </div>
 
-                    {/* RFI Agent */}
-                    <div className="rounded-lg bg-slate-900 border border-slate-800 p-4 sm:p-6 space-y-3">
+                    {/* RAG Agent */}
+                    <div className="rounded-lg bg-violet-900 border border-violet-700 p-4 sm:p-6 space-y-3">
                         <div className="flex items-center gap-3">
-                            <span className="text-2xl sm:text-3xl">🤖</span>
-                            <h3 className="text-base sm:text-lg font-semibold text-amber-300">RFI Agent</h3>
+                            <span className="text-2xl sm:text-3xl">🔍</span>
+                            <h3 className="text-base sm:text-lg font-semibold text-violet-300">RAG Agent</h3>
                         </div>
                         <p className="text-xs sm:text-sm text-slate-300">
-                            Performs intelligent web research when RAG Agent can't find answers. Uses advanced search to find relevant information and provides concise summaries with sources.
+                            Fallback knowledge base search using vector embeddings. Searches trained internal documents when Info Agent doesn't find answers in Confluence.
                         </p>
                         <div className="text-xs text-slate-400">
-                            <strong>Handles:</strong> Web research, external documentation
+                            <strong>Handles:</strong> Vector DB search, company knowledge base
                         </div>
                     </div>
 
-                    {/* L1 Team */}
-                    <div className="rounded-lg bg-slate-900 border border-slate-800 p-4 sm:p-6 space-y-3">
+                    {/* Grafana Agent */}
+                    <div className="rounded-lg bg-blue-900 border border-blue-700 p-4 sm:p-6 space-y-3">
                         <div className="flex items-center gap-3">
-                            <span className="text-2xl sm:text-3xl">👤</span>
-                            <h3 className="text-base sm:text-lg font-semibold text-slate-200">L1 Support Team</h3>
+                            <span className="text-2xl sm:text-3xl">🔔</span>
+                            <h3 className="text-base sm:text-lg font-semibold text-blue-300">Grafana Agent</h3>
                         </div>
                         <p className="text-xs sm:text-sm text-slate-300">
-                            Human support team handles general incidents, technical issues, and requests that require manual intervention. Available for complex problems that need personal attention.
+                            Handles alert suppression for RITM tickets. Automatically silences Grafana alerts for specified time windows and manages monitoring alert lifecycle.
                         </p>
                         <div className="text-xs text-slate-400">
-                            <strong>Handles:</strong> General support, incidents, technical issues
+                            <strong>Handles:</strong> Alert suppression, monitoring alerts
                         </div>
                     </div>
                 </div>

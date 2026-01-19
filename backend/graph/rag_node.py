@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Any
 from langchain_groq import ChatGroq
 from services.rag_service import rag_service
-from graph.state import SNOWState
+from graph.state import OpsState
 
 logger = logging.getLogger("backend.graph.rag_agent")
 
@@ -17,7 +17,7 @@ except Exception as e:
     rag_llm = None
 
 
-def rag_agent(state: SNOWState) -> Dict[str, Any]:
+def rag_agent(state: OpsState) -> Dict[str, Any]:
     """
     RAG Agent: Search company documents first before using web search.
     

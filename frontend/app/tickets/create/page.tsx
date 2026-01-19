@@ -8,11 +8,27 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
 export default function CreateTicketPage() {
     const router = useRouter();
 
-    async function handleSubmit(description: string, alert_id?: string, ticket_type?: string, start_time?: string, end_time?: string) {
+    async function handleSubmit(
+        description: string,
+        alert_id?: string,
+        ticket_type?: string,
+        start_time?: string,
+        end_time?: string,
+        service_type?: string,
+        application?: string
+    ) {
         await fetch(API_BASE + "/process_ticket", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ description, alert_id, ticket_type, start_time, end_time })
+            body: JSON.stringify({
+                description,
+                alert_id,
+                ticket_type,
+                start_time,
+                end_time,
+                service_type,
+                application
+            })
         });
         router.push("/tickets/list");
     }

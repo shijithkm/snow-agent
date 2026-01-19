@@ -1,6 +1,19 @@
 version: "3.9"
 
 services:
+  mcp-server:
+    build: ./mcp-server
+    container_name: confluence-mcp-server
+    ports:
+      - "3001:3001"
+    environment:
+      - CONFLUENCE_URL=${CONFLUENCE_URL:-https://your-domain.atlassian.net}
+      - CONFLUENCE_USERNAME=${CONFLUENCE_USERNAME:-}
+      - CONFLUENCE_API_TOKEN=${CONFLUENCE_API_TOKEN:-}
+      - PORT=3001
+    networks:
+      - app-network
+
   backend:
     build: ./backend
     container_name: servicenow-backend
@@ -9,13 +22,15 @@ services:
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - TAVILY_API_KEY=${TAVILY_API_KEY}
-      - CONFLUENCE_ENABLED=false # Set to 'true' when Confluence MCP is available
-      - CONFLUENCE_MCP_URL=http://localhost:3001 # Confluence MCP server URL
+      - CONFLUENCE_ENABLED=${CONFLUENCE_ENABLED:-true}
+      - CONFLUENCE_MCP_URL=http://mcp-server:3001
     volumes:
       - ./backend:/app
       - rag-data:/app/data # Persistent storage for RAG documents and vector DB
     networks:
       - app-network
+    depends_on:
+      - mcp-server
 
   frontend:
     build:

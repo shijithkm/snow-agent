@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, Any
 from datetime import datetime
 
-class SNOWState(BaseModel):
+class OpsState(BaseModel):
     ticket_id: Optional[str] = None
     description: Optional[str] = None
     intent: Optional[str] = None
@@ -18,3 +18,5 @@ class SNOWState(BaseModel):
     rag_results: Optional[Any] = None
     info_found: Optional[bool] = None
     info_results: Optional[Any] = None
+    service_type: Optional[str] = None
+    application: Optional[str] = None

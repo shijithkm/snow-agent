@@ -9,7 +9,7 @@ export function Header() {
     return (
         <header className="mb-6 sm:mb-8">
             <div className="flex items-center justify-between">
-                <h1 className="text-lg sm:text-xl font-bold">Snow AI Agent</h1>
+                <h1 className="text-lg sm:text-xl font-bold">Ops AI Agent</h1>
 
                 {/* Mobile Menu Button */}
                 <button

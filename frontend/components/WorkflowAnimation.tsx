@@ -14,49 +14,49 @@ const workflowSteps: WorkflowStep[] = [
     {
         id: "start",
         label: "Ticket Created",
-        description: "User submits a ticket via chat or form",
+        description: "User submits RFI, RITM, or INCIDENT ticket",
         icon: "📝",
         color: "bg-blue-500",
     },
     {
         id: "classify",
         label: "Intent Classification",
-        description: "LLM classifies: Alert, RFI, or L1 Support",
+        description: "Classifies ticket type: RFI (info), RITM (request), INCIDENT",
         icon: "🧠",
         color: "bg-purple-500",
     },
     {
         id: "route",
         label: "Smart Routing",
-        description: "Routes to Grafana, Info, or L1 agent",
+        description: "Routes RITM suppress_alerts to Grafana, others to Info Agent",
         icon: "🔀",
         color: "bg-amber-500",
     },
     {
         id: "info",
-        label: "Info Search",
-        description: "Searches Confluence for documentation",
+        label: "Info Agent",
+        description: "Searches Confluence documentation via MCP server",
         icon: "📚",
         color: "bg-cyan-500",
     },
     {
         id: "rag",
-        label: "RAG Search",
-        description: "Searches company docs with vector DB",
+        label: "RAG Agent",
+        description: "Fallback: Searches internal docs with vector DB",
         icon: "🔍",
         color: "bg-violet-500",
     },
     {
         id: "process",
         label: "Agent Processing",
-        description: "Grafana/RFI/L1 agent handles request",
+        description: "Grafana handles alerts, Info/RAG answer questions",
         icon: "⚙️",
         color: "bg-emerald-500",
     },
     {
         id: "complete",
-        label: "Ticket Resolved",
-        description: "Results saved and ticket updated",
+        label: "Resolution",
+        description: "Answer shown to user or escalated to L1 Team",
         icon: "✅",
         color: "bg-green-500",
     },
@@ -86,7 +86,7 @@ export function WorkflowAnimation() {
         <div className="rounded-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700 p-6 sm:p-8 space-y-6">
             <div className="text-center space-y-2">
                 <h2 className="text-xl sm:text-2xl font-bold text-white">
-                    🔄 SNOW Agentic AI Workflow
+                    🔄 OPS Agentic AI Workflow
                 </h2>
                 <p className="text-sm text-slate-300">
                     Watch how tickets flow through our AI-powered system
@@ -154,9 +154,9 @@ export function WorkflowAnimation() {
             </div>
 
             {/* Agent Routing Visualization */}
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3 || activeStep === 5
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 2 || activeStep === 5
                         ? "bg-blue-900/30 border-blue-500 scale-105"
                         : "bg-slate-800/30 border-slate-700"
                         }`}
@@ -165,11 +165,11 @@ export function WorkflowAnimation() {
                         <span className="text-lg">🔔</span>
                         <span className="font-semibold text-blue-300">Grafana Agent</span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Alert Suppression</p>
+                    <p className="text-xs text-slate-400 mt-1">Suppress Alerts</p>
                 </div>
 
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 3 || activeStep === 5
                         ? "bg-cyan-900/30 border-cyan-500 scale-105"
                         : "bg-slate-800/30 border-slate-700"
                         }`}
@@ -178,11 +178,11 @@ export function WorkflowAnimation() {
                         <span className="text-lg">📚</span>
                         <span className="font-semibold text-cyan-300">Info Agent</span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Confluence Search</p>
+                    <p className="text-xs text-slate-400 mt-1">Confluence MCP</p>
                 </div>
 
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 4
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 4 || activeStep === 5
                         ? "bg-violet-900/30 border-violet-500 scale-105"
                         : "bg-slate-800/30 border-slate-700"
                         }`}
@@ -191,24 +191,11 @@ export function WorkflowAnimation() {
                         <span className="text-lg">🔍</span>
                         <span className="font-semibold text-violet-300">RAG Agent</span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Company Docs Search</p>
+                    <p className="text-xs text-slate-400 mt-1">Vector DB</p>
                 </div>
 
                 <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 5
-                        ? "bg-purple-900/30 border-purple-500 scale-105"
-                        : "bg-slate-800/30 border-slate-700"
-                        }`}
-                >
-                    <div className="flex items-center gap-2 text-xs">
-                        <span className="text-lg">🌐</span>
-                        <span className="font-semibold text-purple-300">RFI Agent</span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">Web Search Fallback</p>
-                </div>
-
-                <div
-                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 5
+                    className={`rounded-lg p-3 border transition-all duration-300 ${activeStep === 6
                         ? "bg-emerald-900/30 border-emerald-500 scale-105"
                         : "bg-slate-800/30 border-slate-700"
                         }`}
@@ -217,7 +204,7 @@ export function WorkflowAnimation() {
                         <span className="text-lg">👤</span>
                         <span className="font-semibold text-slate-200">L1 Team</span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Technical Support</p>
+                    <p className="text-xs text-slate-400 mt-1">Escalation</p>
                 </div>
             </div>
 
@@ -242,11 +229,11 @@ export function WorkflowAnimation() {
                 <span>Powered by</span>
                 <span className="font-semibold text-emerald-400">LangGraph</span>
                 <span>+</span>
+                <span className="font-semibold text-cyan-400">Confluence MCP</span>
+                <span>+</span>
                 <span className="font-semibold text-purple-400">Groq LLM</span>
                 <span>+</span>
                 <span className="font-semibold text-violet-400">FAISS Vector DB</span>
-                <span>+</span>
-                <span className="font-semibold text-blue-400">FastAPI</span>
             </div>
         </div>
     );

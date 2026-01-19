@@ -6,8 +6,8 @@ from typing import List, Dict, Any, Optional
 logger = logging.getLogger("backend.services.confluence_mcp")
 
 # Confluence MCP configuration
-CONFLUENCE_MCP_URL = os.getenv("CONFLUENCE_MCP_URL", "http://localhost:3000")
-CONFLUENCE_ENABLED = os.getenv("CONFLUENCE_ENABLED", "false").lower() == "true"
+CONFLUENCE_MCP_URL = os.getenv("CONFLUENCE_MCP_URL", "http://localhost:3001")
+CONFLUENCE_ENABLED = os.getenv("CONFLUENCE_ENABLED", "true").lower() == "true"
 
 
 class ConfluenceMCPClient:

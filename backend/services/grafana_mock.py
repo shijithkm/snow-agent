@@ -3,9 +3,10 @@ import logging
 logger = logging.getLogger("backend.services.grafana")
 
 alerts = [
-    {"id": "A-1", "name": "CPU High", "status": "firing"},
-    {"id": "A-2", "name": "Memory High", "status": "ok"},
-    {"id": "A-3", "name": "Disk Full", "status": "firing"},
+    {"id": "1", "name": "Real User Monitoring Alert", "status": "ok"},
+    {"id": "2", "name": "API Monitoring Alerts", "status": "ok"},
+    {"id": "3", "name": "User Flow Monitoring Alerts", "status": "ok"},
+    {"id": "4", "name": "Infrastructure Alerts", "status": "ok"},
 ]
 
 
